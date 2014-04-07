@@ -1,4 +1,4 @@
-# Library
+# Npm Includes
 fs = require 'fs'
 xml2js = require 'xml2js'
 ftp = require 'ftp'
@@ -6,12 +6,12 @@ http = require 'http'
 pg = require 'pg' 
 async = require 'async'
 csv = require 'csv'
+
+# Local Includes
 utils = require './utils.coffee'
-
-# Config
 config = require './config.json'
+betterDescriptions = require './data/betterDescriptions.json'
 
-attributes = {'Title':'title','Stale':'stale','TravelTime':'travelTime','Speed':'speed','FreeFlow':'freeFlow'}
 timeSeries = []
 
 uploadFile = (inputFile,outputFileName) ->
@@ -44,16 +44,21 @@ extractSingleFileData = (file) ->
   fs.readFile __dirname+'/data/'+file, 'ascii', extractMetadata
     
 extractMetadata = (err, data) ->
+  attributes = {'Title':'title','Stale':'stale','TravelTime':'travelTime','Speed':'speed','FreeFlow':'freeFlow'}
   utils.parseMassDotXml data, parser, (results) ->
     processedTravelData = {}
     processedTravelData.pairData = {}
     processedTravelData.lastUpdated = results.lastUpdated
+
+    # Iterate over pair ids
     for pair in results.pairData
       processedPairData = {}
       pairId = pair['PairID'][0]
+      processedPairData['title'] = betterDescriptions[pairId]
       for mDotName, internalName of attributes
-        processedPairData[internalName] = pair[mDotName][0]
-        processedTravelData.pairData[pairId] = processedPairData
+        if !processedPairData[internalName]?
+          processedPairData[internalName] = pair[mDotName][0]
+      processedTravelData.pairData[pairId] = processedPairData
     processedTravelDataText = JSON.stringify(processedTravelData)
     fileBuffer = new Buffer(processedTravelDataText)
     uploadFile(fileBuffer,'current.json')
