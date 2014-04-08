@@ -44,6 +44,9 @@ $$
 end;
 
 /* Select Percentiles */
+create table percentiles_temp ( pairId integer, lastUpdated timestamp, p10 real, p30 real, p50 real, p70 real, p90 real, recordCount bigint);
+
+insert into percentiles_temp (pairId, lastUpdated, p10, p30, p50, p70, p90, recordCount)
 select
   pairId,
   lastUpdated,
@@ -54,4 +57,7 @@ select
   percentile_cont(cast(array_agg(travelTime) as real[]), cast(0.90 as real)) as p90,
   count(travelTime) as recordCount
 from history
-group by pairId, lastUpdated
+group by pairId, lastUpdated;
+
+drop table percentiles;
+alter table percentiles_temp rename to percentiles;
