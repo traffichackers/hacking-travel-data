@@ -1,54 +1,31 @@
-# Npm Includes
+# Includes
 fs = require 'fs'
 xml2js = require 'xml2js'
 ftp = require 'ftp'
 http = require 'http'
-pg = require 'pg' 
 async = require 'async'
 csv = require 'csv'
+utils = require './utils.coffee'  # Require
+config = require './config.json'  # Server Configuration
+betterDescriptions = require './data/betterDescriptions.json'   # Replacement descriptions for pair ids
 
-# Local Includes
-utils = require './utils.coffee'
-config = require './config.json'
-betterDescriptions = require './data/betterDescriptions.json'
-
-timeSeries = []
-
-uploadFile = (inputFile,outputFileName) ->
-  ftpClient = new ftp
-  ftpClient.on 'ready', () ->
-    ftpClient.put inputFile, 'current.json', (err) ->
-      throw err if err
-      ftpClient.end()
-  ftpClient.connect config.ftpConfig
-
-parser = new xml2js.Parser()
-  
-# Functions
-getCurrentData = () ->
-  callback = (response) ->
+# Get the raw MassDOT XML file
+getCurrentData = (callback) ->
+  httpCallback = (response) ->
     str = ''
     response.on 'data', (chunk) ->
       str += chunk
     response.on 'end', () ->
-      extractMetadata null, str
-  http.request(config.massDotConfig, callback).end()
+      callback null, str
+  http.request(config.massDotConfig, httpCallback).end()
 
-extractMultipleFileData = () ->
-  metaData = []
-  files = fs.readdir __dirname+'/data', (err, files) ->
-    for file in files
-      extractSingleFileData file
-
-extractSingleFileData = (file) ->
-  fs.readFile __dirname+'/data/'+file, 'ascii', extractMetadata
-    
-extractMetadata = (err, data) ->
+# Create the current.json object from the download
+createCurrent = (data, callback) ->
   attributes = {'Title':'title','Stale':'stale','TravelTime':'travelTime','Speed':'speed','FreeFlow':'freeFlow'}
-  utils.parseMassDotXml data, parser, (results) ->
-    processedTravelData = {}
-    processedTravelData.pairData = {}
-    processedTravelData.lastUpdated = results.lastUpdated
+  utils.parseMassDotXml data, (results) ->
+    current = {}
+    current.lastUpdated = results.lastUpdated
+    current.pairData = {}
 
     # Iterate over pair ids
     for pair in results.pairData
@@ -58,10 +35,50 @@ extractMetadata = (err, data) ->
       for mDotName, internalName of attributes
         if !processedPairData[internalName]?
           processedPairData[internalName] = pair[mDotName][0]
-      processedTravelData.pairData[pairId] = processedPairData
-    processedTravelDataText = JSON.stringify(processedTravelData)
-    fileBuffer = new Buffer(processedTravelDataText)
-    uploadFile(fileBuffer,'current.json')
+      current.pairData[pairId] = processedPairData
+    callback null, current    
 
-# Init
-getCurrentData()
+# Query the database and add percentiles for each pair id
+addPercentiles = (current, callback) ->
+  utils.initializeConnection (err, client) ->
+    query = 'select * from percentiles where recordcount > 100 order by pairid, lastUpdated'
+    client.query query, (err, result) ->
+      for row in result.rows
+        # Extract Data
+        if current.pairData[row.pairid]?  
+          if !current.pairData[row.pairid]['percentiles']?
+            current.pairData[row.pairid]['percentiles'] = {}  
+          percentiles = current.pairData[row.pairid]['percentiles']
+          for key, i in ['p10', 'p30', 'p50', 'p70', 'p90']
+            lastUpdated = row.lastupdated.substr(1,5)
+            travelTime = Math.round(row[key])
+            percentiles[key] = [] if !percentiles[key]?
+            percentiles[key].push {x: lastUpdated, y: travelTime}  
+      utils.terminateConnection client, (err) ->
+        callback null, current
+
+stringifyData = (current, callback) ->  
+  currentText = JSON.stringify current
+  callback null, currentText,'current.json'
+
+uploadFile = (fileText, fileName, callback) ->
+  fileBuffer = new Buffer(fileText)
+  ftpClient = new ftp
+  ftpClient.on 'ready', () ->
+    console.log 'uploading current.json'
+    ftpClient.put fileBuffer, fileName, (err) ->
+      console.log 'finished uploading current.json'
+      throw err if err
+      ftpClient.end()
+      callback null
+  ftpClient.connect config.ftpConfig
+
+# Start the Waterfall
+waterfallFunctions = [
+  getCurrentData,
+  createCurrent,
+  addPercentiles,
+  stringifyData,
+  uploadFile
+]
+async.waterfall(waterfallFunctions)

@@ -1,10 +1,16 @@
-# Npm Requirements
+# Npm Includes
 fs = require 'fs'
+pg = require 'pg' 
 xml2js = require 'xml2js'
 http = require 'http'
 csv = require 'csv'
+parser = new xml2js.Parser()
+  
 
-# Utilities
+# Local Includes
+config = require './config.json'
+
+# Private Utility Methods
 getDirs = (rootDir) ->
   files = fs.readdirSync(rootDir)
   dirs = []
@@ -18,15 +24,44 @@ getDirs = (rootDir) ->
 
   return dirs
 
+extractMultipleFileData = () ->
+  metaData = []
+  files = fs.readdir __dirname+'/data', (err, files) ->
+    for file in files
+      extractSingleFileData file
+
+extractSingleFileData = (file) ->
+  fs.readFile __dirname+'/data/'+file, 'ascii', extractMetadata
+
 module.exports =
-  parseMassDotXml:  (data, parser, callback) ->
+
+  # Database
+  initializeConnection: (callback) ->
+    console.log 'initializing connnection'
+    connectionString = config.postgresConnectionString
+    client = new pg.Client(config.connectionOptions)
+    client.connect (err) ->
+      if err
+        return console.error 'could not connect to postgres', err
+      else
+        console.log 'connection initialized'
+        callback null, client
+
+  terminateConnection: (client, callback) ->      
+    client.end()
+    callback null
+
+
+  # XML Parser 
+  parseMassDotXml:  (data, callback) ->
     if data.slice(0,5) == '<?xml'
       parser.parseString data, (err, result) ->
         travelData = result.btdata?.TRAVELDATA[0]
         lastUpdated = travelData?.LastUpdated[0]
         pairData = travelData?.PAIRDATA
         callback({'lastUpdated':lastUpdated, 'pairData':pairData})
-# CSV Generation
+  
+  # CSV Generation
   writeXml: () ->
     attributes = {'Stale':'stale','TravelTime':'travelTime','Speed':'speed','FreeFlow':'freeFlow'}
     fd = fs.openSync 'data.csv', 'a', undefined
