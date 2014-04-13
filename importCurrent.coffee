@@ -41,7 +41,7 @@ createCurrent = (data, callback) ->
 # Query the database and add percentiles for each pair id
 addPercentiles = (current, callback) ->
   utils.initializeConnection (err, client) ->
-    query = 'select * from percentiles where recordcount > 100 order by pairid, lastUpdated'
+    query = 'select * from percentiles_all where recordcount > 100 order by pairid, lastUpdated'
     client.query query, (err, result) ->
       for row in result.rows
         # Extract Data
@@ -50,7 +50,7 @@ addPercentiles = (current, callback) ->
             current.pairData[row.pairid]['percentiles'] = {}  
           percentiles = current.pairData[row.pairid]['percentiles']
           for key, i in ['p10', 'p30', 'p50', 'p70', 'p90']
-            lastUpdated = row.lastupdated.substr(1,5)
+            lastUpdated = row.lastupdated.substr(0,5)
             travelTime = Math.round(row[key])
             percentiles[key] = [] if !percentiles[key]?
             percentiles[key].push {x: lastUpdated, y: travelTime}  

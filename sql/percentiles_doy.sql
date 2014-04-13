@@ -44,13 +44,14 @@ $$
 end;
 
 /* Select Percentiles */
-drop table if exists percentiles_temp;
+drop table if exists percentiles_dow_temp;
 
-create table percentiles_temp ( pairId integer, lastUpdated time, p10 real, p30 real, p50 real, p70 real, p90 real, recordCount bigint);
+create table percentiles_dow_temp ( pairId integer, dow integer, lastUpdated time, p10 real, p30 real, p50 real, p70 real, p90 real, recordCount bigint);
 
-insert into percentiles_temp (pairId, lastUpdated, p10, p30, p50, p70, p90, recordCount)
+insert into percentiles_dow_temp (pairId, dow, lastUpdated, p10, p30, p50, p70, p90, recordCount)
 select
   pairId,
+  extract(dow from lastUpdated) as dow,
   lastUpdated::timestamp::time,
   percentile_cont(cast(array_agg(travelTime) as real[]), cast(0.10 as real)) as p10,
   percentile_cont(cast(array_agg(travelTime) as real[]), cast(0.30 as real)) as p30,
@@ -59,7 +60,8 @@ select
   percentile_cont(cast(array_agg(travelTime) as real[]), cast(0.90 as real)) as p90,
   count(travelTime) as recordCount
 from history
-group by pairId, lastUpdated::timestamp::time;
+where pairId = 5490
+group by pairId, extract(dow from lastUpdated), lastUpdated::timestamp::time;
 
-drop table if exists percentiles;
-alter table percentiles_temp rename to percentiles;
+drop table if exists percentiles_dow;
+alter table percentiles_dow_temp rename to percentiles_dow;
