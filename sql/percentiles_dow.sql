@@ -60,7 +60,6 @@ select
   percentile_cont(cast(array_agg(travelTime) as real[]), cast(0.90 as real)) as p90,
   count(travelTime) as recordCount
 from history
-where pairId = 5490
 group by pairId, extract(dow from lastUpdated), lastUpdated::timestamp::time;
 
 drop table if exists percentiles_dow;

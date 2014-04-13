@@ -1,12 +1,12 @@
 # Npm Includes
 fs = require 'fs'
+ftp = require 'ftp'
 pg = require 'pg' 
 xml2js = require 'xml2js'
 http = require 'http'
 csv = require 'csv'
 parser = new xml2js.Parser()
   
-
 # Local Includes
 config = require './config.json'
 
@@ -34,6 +34,21 @@ extractSingleFileData = (file) ->
   fs.readFile __dirname+'/data/'+file, 'ascii', extractMetadata
 
 module.exports =
+
+  # FTP
+  uploadFile: (fileData, fileName, callback) ->
+    fileText = JSON.stringify fileData
+    fileBuffer = new Buffer(fileText)
+    ftpClient = new ftp
+    ftpClient.on 'ready', () ->
+      console.log 'uploading '+fileName
+      ftpClient.put fileBuffer, fileName, (err) ->
+        console.log 'finished uploading '+fileName
+        throw err if err
+        ftpClient.end()
+        callback null
+    ftpClient.connect config.ftpConfig
+
 
   # Database
   initializeConnection: (callback) ->
