@@ -46,7 +46,7 @@ createPercentiles = (result, pairData, callback) ->
     
     # Load Data
     for key, i in ['p10', 'p30', 'p50', 'p70', 'p90']
-      lastUpdated = parseInt(row.lastupdated.substr(0,5))
+      lastUpdated = row.lastupdated.substr(0,5)
       travelTime = Math.round(row[key])
       percentiles[key] = [] if !percentiles[key]?
       percentiles[key].push {'x': lastUpdated, 'y': travelTime}
