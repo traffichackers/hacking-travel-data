@@ -33,24 +33,49 @@ extractMultipleFileData = () ->
 extractSingleFileData = (file) ->
   fs.readFile __dirname+'/data/'+file, 'ascii', extractMetadata
 
-module.exports =
 
-  # FTP
-  uploadFile: (fileData, fileName, callback) ->
-    fileText = JSON.stringify fileData
-    fileBuffer = new Buffer(fileText)
+# FTP
+initializeFtpConnection = (callback) ->
     ftpClient = new ftp
     ftpClient.on 'ready', () ->
+      callback(ftpClient)
+    ftpClient.connect config.ftpConfig
+
+coreUpload = (ftpClient, fileList, counter, callback) ->
+    # Extract Names
+    fileData = fileList[counter].content
+    fileName = fileList[counter].name
+    
+    # Process and Upload
+    fileText = JSON.stringify fileData
+    fileBuffer = new Buffer(fileText)
+    console.log 'uploading '+fileName
+    ftpClient.put fileBuffer, fileName, (err) ->
+      console.log 'finished uploading '+fileName
+      throw err if err
+      if counter is fileList.length-1
+        callback null
+      else  
+        coreUpload ftpClient, fileList, counter+1, callback
+
+module.exports =
+
+  uploadFiles: (fileList, callback) ->
+    initializeFtpConnection (ftpClient) ->
+      counter = 0
+      coreUpload ftpClient, fileList, counter, callback
+    
+  uploadFile: (fileData, fileName, callback) ->
+    fileText = JSON.stringify fileData
+    fileBuffer = new Buffer(fileText)  
+    initializeFtpConnection (ftpClient) ->
       console.log 'uploading '+fileName
       ftpClient.put fileBuffer, fileName, (err) ->
         console.log 'finished uploading '+fileName
         throw err if err
-        ftpClient.end()
+        ftpClient.end()    
         callback null
-    ftpClient.connect config.ftpConfig
-
-
-  # Database
+  
   initializeConnection: (callback) ->
     console.log 'initializing connnection'
     connectionString = config.postgresConnectionString

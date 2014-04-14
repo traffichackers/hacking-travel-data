@@ -12,51 +12,65 @@ betterDescriptions = require './data/betterDescriptions.json'   # Replacement de
 # Query the database and add percentiles for each pair id
 getAllPercentileQuery = (callback) ->
   query = 'select * from percentiles_all where recordcount > 100 order by pairid, lastUpdated'
-  fileName = 'percentilesDow.json'
-  callback null, query, fileName
+  pairData = {}
+  callback null, query, pairData
 
-getDowPercentileQuery = (callback) ->
+getDowPercentileQuery = (pairData, callback) ->
   query = 'select * from percentiles_dow where recordcount > 100 order by pairid, lastUpdated'
-  fileName = 'percentilesAll.json'
-  callback null, query, fileName
+  callback null, query, pairData
 
-issueQuery = (query, fileName, callback) ->
+issueQuery = (query, pairData, callback) ->
   utils.initializeConnection (err, client) ->
     console.log 'issuing query'
     client.query query, (err, result) ->
       console.log 'results received'
-      callback null, result, fileName
+      callback null, result, pairData
       utils.terminateConnection client, (err) ->
       
-createPercentiles = (result, fileName, callback) ->
+createPercentiles = (result, pairData, callback) ->
   console.log 'processing percentiles'
-  pairData = {}
   
   for row in result.rows
-    # Extract Data
-    if !pairData[row.pairid]?
-      pairData[row.pairid] = {}
-    if !pairData[row.pairid]['percentiles']?
-      pairData[row.pairid]['percentiles'] = {}
+
+    # Initialize Objects
+    pairData[row.pairid] = {} if !pairData[row.pairid]? 
+    pairData[row.pairid].percentiles = {} if !pairData[row.pairid].percentiles?
+    percentiles = pairData[row.pairid].percentiles
     if row.dow?
-      if !pairData[row.pairid]['percentiles'][row.dow]?
-        pairData[row.pairid]['percentiles'][row.dow] = {}    
-      percentiles = pairData[row.pairid]['percentiles'][row.dow]
+      percentiles.dow = {} if !percentiles.dow?
+      percentiles.dow[row.dow] = [] if !percentiles.dow[row.dow]?
+      percentiles = percentiles.dow
     else
-      percentiles = pairData[row.pairid]['percentiles']
+      percentiles.all = {} if !percentiles.all?
+      percentiles = percentiles.all
+    
+    # Load Data
     for key, i in ['p10', 'p30', 'p50', 'p70', 'p90']
-      lastUpdated = parseInt(row.lastupdated.substr(0,5).replace(':',''))
+      lastUpdated = parseInt(row.lastupdated.substr(0,5))
       travelTime = Math.round(row[key])
       percentiles[key] = [] if !percentiles[key]?
-      percentiles[key].push {1: lastUpdated, 2: travelTime}  
+      percentiles[key].push {'x': lastUpdated, 'y': travelTime}
+      
   console.log 'percentiles processed'
-  callback null, pairData, fileName
+  callback null, pairData
+  
+uploadFiles = (pairData, callback) ->
+  # Process into Array
+  uploadList = []
+  for fileName, pairDatum of pairData
+    uploadList.push {'content':pairDatum, 'name':fileName+'.json'}
+
+  # Upload
+  utils.uploadFiles uploadList  
 
 # Start the Waterfall
 waterfallFunctions = [
+  getAllPercentileQuery,
+  issueQuery,
+  createPercentiles,
   getDowPercentileQuery,
   issueQuery,
   createPercentiles,
-  utils.uploadFile
+  uploadFiles
 ]
 async.waterfall(waterfallFunctions)
