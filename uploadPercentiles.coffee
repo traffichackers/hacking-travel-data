@@ -1,7 +1,6 @@
 # Includes
 fs = require 'fs'
 xml2js = require 'xml2js'
-ftp = require 'ftp'
 http = require 'http'
 async = require 'async'
 csv = require 'csv'
@@ -58,10 +57,10 @@ uploadFiles = (pairData, callback) ->
   # Process into Array
   uploadList = []
   for fileName, pairDatum of pairData
-    uploadList.push {'content':pairDatum, 'name':fileName+'.json'}
+    uploadList.push {'content':pairDatum, 'name':'data/'+fileName+'.json'}
 
   # Upload
-  utils.uploadFiles uploadList  
+  utils.uploadFiles uploadList, callback  
 
 # Start the Waterfall
 waterfallFunctions = [
@@ -73,4 +72,5 @@ waterfallFunctions = [
   createPercentiles,
   uploadFiles
 ]
-async.waterfall(waterfallFunctions)
+
+async.waterfall waterfallFunctions, (err, result) ->
