@@ -30,15 +30,14 @@ createPercentiles = (result, pairData, callback) ->
   console.log 'processing percentiles'
   
   for row in result.rows
-
     # Initialize Objects
     pairData[row.pairid] = {} if !pairData[row.pairid]? 
     pairData[row.pairid].percentiles = {} if !pairData[row.pairid].percentiles?
     percentiles = pairData[row.pairid].percentiles
     if row.dow?
       percentiles.dow = {} if !percentiles.dow?
-      percentiles.dow[row.dow] = [] if !percentiles.dow[row.dow]?
-      percentiles = percentiles.dow
+      percentiles.dow[row.dow] = {} if !percentiles.dow[row.dow]?
+      percentiles = percentiles.dow[row.dow]
     else
       percentiles.all = {} if !percentiles.all?
       percentiles = percentiles.all
@@ -49,7 +48,7 @@ createPercentiles = (result, pairData, callback) ->
       travelTime = Math.round(row[key])
       percentiles[key] = [] if !percentiles[key]?
       percentiles[key].push {'x': lastUpdated, 'y': travelTime}
-      
+        
   console.log 'percentiles processed'
   callback null, pairData
   
