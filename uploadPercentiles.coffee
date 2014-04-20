@@ -1,7 +1,6 @@
 # Includes
 fs = require 'fs'
 xml2js = require 'xml2js'
-ftp = require 'ftp'
 http = require 'http'
 async = require 'async'
 csv = require 'csv'
@@ -46,7 +45,7 @@ createPercentiles = (result, pairData, callback) ->
     
     # Load Data
     for key, i in ['p10', 'p30', 'p50', 'p70', 'p90']
-      lastUpdated = parseInt(row.lastupdated.substr(0,5))
+      lastUpdated = row.lastupdated.substr(0,5)
       travelTime = Math.round(row[key])
       percentiles[key] = [] if !percentiles[key]?
       percentiles[key].push {'x': lastUpdated, 'y': travelTime}
@@ -58,10 +57,10 @@ uploadFiles = (pairData, callback) ->
   # Process into Array
   uploadList = []
   for fileName, pairDatum of pairData
-    uploadList.push {'content':pairDatum, 'name':fileName+'.json'}
+    uploadList.push {'content':pairDatum, 'name':'data/'+fileName+'.json'}
 
   # Upload
-  utils.uploadFiles uploadList  
+  utils.uploadFiles uploadList, callback  
 
 # Start the Waterfall
 waterfallFunctions = [
@@ -73,4 +72,5 @@ waterfallFunctions = [
   createPercentiles,
   uploadFiles
 ]
-async.waterfall(waterfallFunctions)
+
+async.waterfall waterfallFunctions, (err, result) ->
