@@ -21,21 +21,39 @@ getCurrentData = (callback) ->
 
 # Create the current.json object from the download
 createCurrent = (data, callback) ->
-  attributes = {'Title':'title','Stale':'stale','TravelTime':'travelTime','Speed':'speed','FreeFlow':'freeFlow'}
+
+  date = new Date()
+  a = date.toISOString().replace(/[T\-:]/g,'_')
+  fileName = a.slice(0,7)+a.slice(8,11)+a.slice(11,13)+a.slice(14,16)
+  fullFileName = config.xmlExportPath+fileName+'.xml'
+  console.log fullFileName
+  fd = fs.openSync fullFileName, 'a', undefined
+  fs.writeSync fd, data, undefined, undefined
+  
   utils.parseMassDotXml data, (results) ->
     current = {}
     current.lastUpdated = results.lastUpdated
     current.pairData = {}
-
+    currentInsertQuery = ""
+    
     # Iterate over pair ids
     for pair in results.pairData
       processedPairData = {}
-      pairId = pair['PairID'][0]
-      processedPairData['title'] = betterDescriptions[pairId]
-      for mDotName, internalName of attributes
-        if !processedPairData[internalName]?
-          processedPairData[internalName] = pair[mDotName][0]
-      current.pairData[pairId] = processedPairData
+      
+      if !isNaN(pair['TravelTime'][0])      
+        processedPairData['pairId'] = pair['PairID'][0]
+        processedPairData['stale'] = if pair.Stale[0] is 1 then true else false
+        processedPairData['travelTime'] = pair['TravelTime'][0]
+        processedPairData['speed'] = pair['Speed'][0]
+        processedPairData['freeFlow'] = pair['FreeFlow'][0]
+        processedPairData['title'] = betterDescriptions[processedPairData.pairId]
+ 
+        currentInsertQuery += "insert into history (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+current.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
+        current.pairData[processedPairData.pairId] = processedPairData
+        
+    utils.initializeConnection (err, client) ->
+      client.query currentInsertQuery, (err, result) ->
+        utils.terminateConnection client, () ->
     callback null, current, 'current.json'
 
 
