@@ -25,11 +25,14 @@ createCurrent = (data, callback) ->
   date = new Date()
   a = date.toISOString().replace(/[T\-:]/g,'_')
   fileName = a.slice(0,7)+a.slice(8,11)+a.slice(11,13)+a.slice(14,16)
+  
+  # Write XML to disk
   fullFileName = config.xmlExportPath+fileName+'.xml'
-  console.log fullFileName
   fd = fs.openSync fullFileName, 'a', undefined
   fs.writeSync fd, data, undefined, undefined
+  console.log fullFileName + ' written'
   
+  # Parse XML and insert
   utils.parseMassDotXml data, (results) ->
     current = {}
     current.lastUpdated = results.lastUpdated
@@ -53,14 +56,31 @@ createCurrent = (data, callback) ->
         
     utils.initializeConnection (err, client) ->
       client.query currentInsertQuery, (err, result) ->
-        utils.terminateConnection client, () ->
-    callback null, current, 'current.json'
-
+        callback null, current, client
+    
+getTodayData = (current, client, callback) ->
+  todayDataQuery = "select * from history where lastUpdated::date = now()::date order by pairId, lastUpdated"
+  console.log 'pulling today data from database'
+  client.query todayDataQuery, (err, result) ->
+    console.log 'today data pulled'
+    pairData = current.pairData
+    for row in result.rows
+    
+      # Initialize objects, if necessary
+      pairData[row.pairid] = {} if !pairData[row.pairid]? 
+      pairData[row.pairid].today = [] if !pairData[row.pairid].today?
+    
+      # Delete Objects
+      pairData[row.pairid].today.push {'x': row.lastUpdated, 'y': row.travelTime}
+  
+    utils.terminateConnection client, () ->
+      callback null, current, 'current.json'
 
 # Start the Waterfall
 waterfallFunctions = [
   getCurrentData,
   createCurrent,
+  getTodayData,
   utils.uploadFile
 ]
 async.waterfall(waterfallFunctions)
