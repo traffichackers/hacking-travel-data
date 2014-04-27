@@ -71,7 +71,9 @@ getTodayData = (current, client, callback) ->
       pairData[row.pairid].today = [] if !pairData[row.pairid].today?
     
       # Delete Objects
-      pairData[row.pairid].today.push {'x': row.lastUpdated, 'y': row.travelTime}
+      lastUpdated = row.lastupdated.toJSON().substr(11,5)
+      travelTime = Math.round(row.traveltime)
+      pairData[row.pairid].today.push {'x': lastUpdated, 'y': travelTime}
   
     utils.terminateConnection client, () ->
       callback null, current, 'current.json'
