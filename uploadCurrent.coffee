@@ -43,14 +43,15 @@ createCurrent = (data, callback) ->
     for pair in results.pairData
       processedPairData = {}
       
-      if !isNaN(pair['TravelTime'][0])      
+      if !isNaN(pair['TravelTime'][0])  
         processedPairData['pairId'] = pair['PairID'][0]
         processedPairData['stale'] = if pair.Stale[0] is 1 then true else false
         processedPairData['travelTime'] = pair['TravelTime'][0]
         processedPairData['speed'] = pair['Speed'][0]
         processedPairData['freeFlow'] = pair['FreeFlow'][0]
         processedPairData['title'] = betterDescriptions[processedPairData.pairId]
- 
+        processedPairData.title = pair['Title'][0] if !processedPairData.title?
+          
         currentInsertQuery += "insert into history (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+current.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
         current.pairData[processedPairData.pairId] = processedPairData
         
@@ -59,7 +60,7 @@ createCurrent = (data, callback) ->
         callback null, current, client
     
 getTodayData = (current, client, callback) ->
-  todayDataQuery = "select * from history where lastUpdated::date = now()::date order by pairId, lastUpdated"
+  todayDataQuery = "select pairId, lastUpdated::timestamp::time, stale, travelTime, speed, freeFlow from history where lastUpdated::date = now()::date order by pairId, lastUpdated"
   console.log 'pulling today data from database'
   client.query todayDataQuery, (err, result) ->
     console.log 'today data pulled'
@@ -67,13 +68,13 @@ getTodayData = (current, client, callback) ->
     for row in result.rows
     
       # Initialize objects, if necessary
-      pairData[row.pairid] = {} if !pairData[row.pairid]? 
-      pairData[row.pairid].today = [] if !pairData[row.pairid].today?
-    
-      # Delete Objects
-      lastUpdated = row.lastupdated.toJSON().substr(11,5)
-      travelTime = Math.round(row.traveltime)
-      pairData[row.pairid].today.push {'x': lastUpdated, 'y': travelTime}
+      if pairData[row.pairid]? 
+        pairData[row.pairid].today = [] if !pairData[row.pairid].today?
+      
+        # Delete Objects
+        lastUpdated = row.lastupdated.substr(0,5)
+        travelTime = Math.round(row.traveltime)
+        pairData[row.pairid].today.push {'x': lastUpdated, 'y': travelTime}
   
     utils.terminateConnection client, () ->
       callback null, current, 'current.json'
