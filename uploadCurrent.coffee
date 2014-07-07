@@ -58,24 +58,45 @@ createCurrent = (data, callback) ->
     utils.initializeConnection (err, client) ->
       client.query currentInsertQuery, (err, result) ->
         callback null, current, client
+
+getCurrentPredictions = (current, client, callback) ->
+  console.log 'integrating current predictions'
+  
+  # Read the current predictions file
+  fs.readFile config.currentPredictionsPath, (err, currentPredictionsText) ->
+    if err
+      throw err
+
+    pairData = current.pairData
+    currentPredictions = JSON.parse currentPredictionsText
+    
+    for pairId, pairPredictions of currentPredictions
+      # Initialize objects, if necessary
+      if pairData[pairId]? 
+        pairData[pairId].predictions = [] if !pairData[pairId].predictions?s
+        for predictedValue, i in pairPredictions['50']        
+          pairData[pairId].predictions.push Math.ceil predictedValue
+    
+    callback null, current, client
     
 getTodayData = (current, client, callback) ->
   todayDataQuery = "select pairId, lastUpdated::timestamp::time, stale, travelTime, speed, freeFlow from history where lastUpdated::date = now()::date order by pairId, lastUpdated"
   console.log 'pulling today data from database'
+
   client.query todayDataQuery, (err, result) ->
     console.log 'today data pulled'
     pairData = current.pairData
     for row in result.rows
-    
+
       # Initialize objects, if necessary
-      if pairData[row.pairid]? 
+      if pairData[row.pairid]?
         pairData[row.pairid].today = [] if !pairData[row.pairid].today?
       
         # Delete Objects
         lastUpdated = row.lastupdated.substr(0,5)
         travelTime = Math.round(row.traveltime)
         pairData[row.pairid].today.push {'x': lastUpdated, 'y': travelTime}
-  
+
     utils.terminateConnection client, () ->
       callback null, current, 'current.json'
 
@@ -83,6 +104,7 @@ getTodayData = (current, client, callback) ->
 waterfallFunctions = [
   getCurrentData,
   createCurrent,
+  getCurrentPredictions,
   getTodayData,
   utils.uploadFile
 ]
