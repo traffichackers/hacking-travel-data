@@ -1,12 +1,12 @@
 # Npm Includes
 fs = require 'fs'
 ftp = require 'ftp'
-pg = require 'pg' 
+pg = require 'pg'
 xml2js = require 'xml2js'
 http = require 'http'
 csv = require 'csv'
 parser = new xml2js.Parser()
-  
+
 # Local Includes
 config = require './config.json'
 
@@ -45,7 +45,7 @@ coreUpload = (ftpClient, fileList, counter, callback) ->
     # Extract Names
     fileData = fileList[counter].content
     fileName = fileList[counter].name
-    
+
     # Process and Upload
     fileText = JSON.stringify fileData
     fileBuffer = new Buffer(fileText)
@@ -55,27 +55,37 @@ coreUpload = (ftpClient, fileList, counter, callback) ->
       throw err if err
       if counter is fileList.length-1
         callback null
-      else  
+      else
         coreUpload ftpClient, fileList, counter+1, callback
 
 module.exports =
+
+  isValidPair: (pair) ->
+    validPair = true
+    criticalFields = ['TravelTime', 'Speed', 'FreeFlow']
+    for criticalField in criticalFields
+      if isNaN(pair[criticalField][0])
+        validPair = false
+      else if pair[criticalField][0] is ''
+        validPair = false
+    validPair
 
   uploadFiles: (fileList, callback) ->
     initializeFtpConnection (ftpClient) ->
       counter = 0
       coreUpload ftpClient, fileList, counter, callback
-    
+
   uploadFile: (fileData, fileName, callback) ->
     fileText = JSON.stringify fileData
-    fileBuffer = new Buffer(fileText)  
+    fileBuffer = new Buffer(fileText)
     initializeFtpConnection (ftpClient) ->
       console.log 'uploading '+fileName
       ftpClient.put fileBuffer, fileName, (err) ->
         console.log 'finished uploading '+fileName
         throw err if err
-        ftpClient.end()    
+        ftpClient.end()
         callback null
-  
+
   initializeConnection: (callback) ->
     console.log 'initializing connnection'
     connectionString = config.postgresConnectionString
@@ -87,12 +97,12 @@ module.exports =
         console.log 'connection initialized'
         callback null, client
 
-  terminateConnection: (client, callback) ->      
+  terminateConnection: (client, callback) ->
     client.end()
     callback null
 
 
-  # XML Parser 
+  # XML Parser
   parseMassDotXml:  (data, callback) ->
     if data.slice(0,5) == '<?xml'
       parser.parseString data, (err, result) ->
@@ -100,7 +110,7 @@ module.exports =
         lastUpdated = travelData?.LastUpdated[0]
         pairData = travelData?.PAIRDATA
         callback({'lastUpdated':lastUpdated, 'pairData':pairData})
-  
+
   # CSV Generation
   writeXml: () ->
     attributes = {'Stale':'stale','TravelTime':'travelTime','Speed':'speed','FreeFlow':'freeFlow'}
