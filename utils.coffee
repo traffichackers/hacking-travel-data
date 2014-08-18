@@ -78,7 +78,7 @@ module.exports =
   uploadFile: (fileText, fileName, callback) ->
 
     # Convert to string if needed
-    if typeof fileText === "Object"
+    if typeof fileText is "Object"
       fileText = JSON.stringify fileText
     fileBuffer = new Buffer(fileText)
     initializeFtpConnection (ftpClient) ->
