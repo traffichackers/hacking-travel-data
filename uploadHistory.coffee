@@ -11,18 +11,20 @@ betterDescriptions = require './data/betterDescriptions.json'   # Replacement de
 # Create the current.json object from the download
 getHistory = (callback) ->
   utils.initializeConnection (err, client) ->
-    historyQuery = 'select * from history2 limit 1';
+    historyQuery = 'select * from history2 limit 1000';
     client.query historyQuery, (err, result) ->
 
       # Generate the CSV string
       historyCsv = ''
       for row in result.rows
-        if historyCsv === ''
-          keys = Object.keys(row);
-          historyCsv = keys.join(',');
+        if historyCsv is ''
+          keys = Object.keys(row)
+          historyCsv = keys.join(',')
+        tempRow = []
         for key in keys
           tempRow.push row[key]
-        history = tempRow.join(',');
+          console.log tempRow
+        historyCsv += '\n'+tempRow.join(',')
 
       utils.terminateConnection client, () ->
         callback null, historyCsv, 'history.csv'
