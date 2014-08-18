@@ -75,8 +75,11 @@ module.exports =
       counter = 0
       coreUpload ftpClient, fileList, counter, callback
 
-  uploadFile: (fileData, fileName, callback) ->
-    fileText = JSON.stringify fileData
+  uploadFile: (fileText, fileName, callback) ->
+
+    # Convert to string if needed
+    if typeof fileText === "Object"
+      fileText = JSON.stringify fileText
     fileBuffer = new Buffer(fileText)
     initializeFtpConnection (ftpClient) ->
       console.log 'uploading '+fileName
