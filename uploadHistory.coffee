@@ -11,7 +11,7 @@ betterDescriptions = require './data/betterDescriptions.json'   # Replacement de
 # Create the current.json object from the download
 getHistory = (callback) ->
   utils.initializeConnection (err, client) ->
-    historyQuery = 'select * from history2 limit 1000';
+    historyQuery = "select pairid, to_char(lastupdated,'YY-MM-DD HH:MI') as lastupdated, stale, traveltime, speed, freeflow from history2";
     client.query historyQuery, (err, result) ->
 
       # Generate the CSV string
@@ -23,7 +23,6 @@ getHistory = (callback) ->
         tempRow = []
         for key in keys
           tempRow.push row[key]
-          console.log tempRow
         historyCsv += '\n'+tempRow.join(',')
 
       utils.terminateConnection client, () ->
