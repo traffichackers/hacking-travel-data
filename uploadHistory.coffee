@@ -13,7 +13,8 @@ getHistory = (callback) ->
   utils.initializeConnection (err, client) ->
     historyQuery = "select pairid, to_char(lastupdated,'YY-MM-DD HH:MI') as lastupdated, stale, traveltime, speed, freeflow from history2";
     client.query historyQuery, (err, result) ->
-
+      console.log 'history received'
+      
       # Generate the CSV string
       historyCsv = ''
       for row in result.rows
@@ -24,7 +25,8 @@ getHistory = (callback) ->
         for key in keys
           tempRow.push row[key]
         historyCsv += '\n'+tempRow.join(',')
-
+      
+      console.log 'uploading history'
       utils.terminateConnection client, () ->
         callback null, historyCsv, 'history.csv'
 
