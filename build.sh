@@ -8,9 +8,4 @@ sudo apt-get install pgadmin3 -y
 sudo apt-get install libpq-dev -y
 psql -c 'CREATE DATABASE hackingTravel'
 sudo npm install -g coffee-script
-npm install xml2js
-npm install pg
-npm install ftp
-npm install async
-npm install csv
-npm install better-require
+npm install
