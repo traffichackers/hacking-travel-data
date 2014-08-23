@@ -5,6 +5,7 @@ ftp = require 'ftp'
 http = require 'http'
 async = require 'async'
 csv = require 'csv'
+zlib = require 'zlib'
 utils = require './utils'  # Require
 config = require './config.json'  # Server Configuration
 betterDescriptions = require './data/betterDescriptions.json'   # Replacement descriptions for pair ids
@@ -27,37 +28,38 @@ createCurrent = (data, callback) ->
   fileName = a.slice(0,7)+a.slice(8,11)+a.slice(11,13)+a.slice(14,16)
 
   # Write XML to disk
-  fullFileName = config.xmlExportPath+fileName+'.xml'
-  fd = fs.openSync fullFileName, 'a', undefined
-  fs.writeSync fd, data, undefined, undefined
-  console.log fullFileName + ' written'
+  fullFileName = config.xmlExportPath+fileName+'.xml.gz'
 
-  # Parse XML and insert
-  utils.parseMassDotXml data, (results) ->
-    current = {}
-    current.lastUpdated = results.lastUpdated
-    current.pairData = {}
-    currentInsertQuery = ""
+  zlib.gzip data, (_, result) ->
+    fs.writeFile(fullFileName, result)
+    console.log fullFileName + ' written'
 
-    # Iterate over pair ids
-    for pair in results.pairData
-      processedPairData = {}
+    # Parse XML and insert
+    utils.parseMassDotXml data, (results) ->
+      current = {}
+      current.lastUpdated = results.lastUpdated
+      current.pairData = {}
+      currentInsertQuery = ""
 
-      if utils.isValidPair(pair)
-        processedPairData['pairId'] = pair['PairID'][0]
-        processedPairData['stale'] = if pair.Stale[0] is 1 then true else false
-        processedPairData['travelTime'] = pair['TravelTime'][0]
-        processedPairData['speed'] = pair['Speed'][0]
-        processedPairData['freeFlow'] = pair['FreeFlow'][0]
-        processedPairData['title'] = betterDescriptions[processedPairData.pairId]
-        processedPairData.title = pair['Title'][0] if !processedPairData.title?
+      # Iterate over pair ids
+      for pair in results.pairData
+        processedPairData = {}
 
-        currentInsertQuery += "insert into history (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+current.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
-        current.pairData[processedPairData.pairId] = processedPairData
+        if utils.isValidPair(pair)
+          processedPairData['pairId'] = pair['PairID'][0]
+          processedPairData['stale'] = if pair.Stale[0] is 1 then true else false
+          processedPairData['travelTime'] = pair['TravelTime'][0]
+          processedPairData['speed'] = pair['Speed'][0]
+          processedPairData['freeFlow'] = pair['FreeFlow'][0]
+          processedPairData['title'] = betterDescriptions[processedPairData.pairId]
+          processedPairData.title = pair['Title'][0] if !processedPairData.title?
 
-    utils.initializeConnection (err, client) ->
-      client.query currentInsertQuery, (err, result) ->
-        callback null, current, client
+          currentInsertQuery += "insert into history (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+current.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
+          current.pairData[processedPairData.pairId] = processedPairData
+
+      utils.initializeConnection (err, client) ->
+        client.query currentInsertQuery, (err, result) ->
+          callback null, current, client
 
 getCurrentPredictions = (current, client, callback) ->
   console.log 'integrating current predictions'
