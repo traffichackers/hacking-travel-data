@@ -1,7 +1,6 @@
 # Includes
 fs = require 'fs'
 xml2js = require 'xml2js'
-ftp = require 'ftp'
 http = require 'http'
 async = require 'async'
 csv = require 'csv'
@@ -48,7 +47,7 @@ createCurrent = (data, callback) ->
         if utils.isValidPair(pair)
           processedPairData['pairId'] = pair['PairID'][0]
           processedPairData['stale'] = if pair.Stale[0] is 1 then true else false
-          processedPairData['travelTime'] = pair['TravelTime'][0]
+          processedPairData['travelTime'] = Math.round(pair['TravelTime'][0],2);
           processedPairData['speed'] = pair['Speed'][0]
           processedPairData['freeFlow'] = pair['FreeFlow'][0]
           processedPairData['title'] = betterDescriptions[processedPairData.pairId]
@@ -59,55 +58,13 @@ createCurrent = (data, callback) ->
 
       utils.initializeConnection (err, client) ->
         client.query currentInsertQuery, (err, result) ->
-          callback null, current, client
-
-getCurrentPredictions = (current, client, callback) ->
-  console.log 'integrating current predictions'
-
-  # Read the current predictions file
-  fs.readFile config.currentPredictionsPath, (err, currentPredictionsText) ->
-    if err
-      throw err
-
-    pairData = current.pairData
-    currentPredictions = JSON.parse currentPredictionsText
-
-    for pairId, pairPredictions of currentPredictions
-      # Initialize objects, if necessary
-      if pairData[pairId]?
-        pairData[pairId].predictions = [] if !pairData[pairId].predictions?s
-        for predictedValue, i in pairPredictions['50']
-          pairData[pairId].predictions.push Math.ceil predictedValue
-
-    callback null, current, client
-
-getTodayData = (current, client, callback) ->
-  todayDataQuery = "select pairId, lastUpdated::timestamp::time, stale, travelTime, speed, freeFlow from history where lastUpdated::date = now()::date order by pairId, lastUpdated"
-  console.log 'pulling today data from database'
-
-  client.query todayDataQuery, (err, result) ->
-    console.log 'today data pulled'
-    pairData = current.pairData
-    for row in result.rows
-
-      # Initialize objects, if necessary
-      if pairData[row.pairid]?
-        pairData[row.pairid].today = [] if !pairData[row.pairid].today?
-
-        # Delete Objects
-        lastUpdated = row.lastupdated.substr(0,5)
-        travelTime = Math.round(row.traveltime)
-        pairData[row.pairid].today.push {'x': lastUpdated, 'y': travelTime}
-
-    utils.terminateConnection client, () ->
-      callback null, current, 'current.json'
+          utils.terminateConnection client, () ->
+            callback null, current, 'current.json'
 
 # Start the Waterfall
 waterfallFunctions = [
   getCurrentData,
   createCurrent,
-  getCurrentPredictions,
-  getTodayData,
   utils.uploadFile
 ]
 async.waterfall(waterfallFunctions)

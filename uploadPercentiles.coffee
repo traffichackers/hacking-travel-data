@@ -25,13 +25,13 @@ issueQuery = (query, pairData, callback) ->
       console.log 'results received'
       callback null, result, pairData
       utils.terminateConnection client, (err) ->
-      
+
 createPercentiles = (result, pairData, callback) ->
   console.log 'processing percentiles'
-  
+
   for row in result.rows
     # Initialize Objects
-    pairData[row.pairid] = {} if !pairData[row.pairid]? 
+    pairData[row.pairid] = {} if !pairData[row.pairid]?
     pairData[row.pairid].percentiles = {} if !pairData[row.pairid].percentiles?
     percentiles = pairData[row.pairid].percentiles
     if row.dow?
@@ -41,17 +41,17 @@ createPercentiles = (result, pairData, callback) ->
     else
       percentiles.all = {} if !percentiles.all?
       percentiles = percentiles.all
-    
+
     # Load Data
     for key, i in ['p10', 'p30', 'p50', 'p70', 'p90']
       lastUpdated = row.lastupdated.substr(0,5)
       travelTime = Math.round(row[key])
       percentiles[key] = [] if !percentiles[key]?
       percentiles[key].push {'x': lastUpdated, 'y': travelTime}
-        
+
   console.log 'percentiles processed'
   callback null, pairData
-  
+
 uploadFiles = (pairData, callback) ->
   # Process into Array
   uploadList = []
@@ -59,7 +59,7 @@ uploadFiles = (pairData, callback) ->
     uploadList.push {'content':pairDatum, 'name':'data/'+fileName+'.json'}
 
   # Upload
-  utils.uploadFiles uploadList, callback  
+  utils.uploadFiles uploadList, callback
 
 # Start the Waterfall
 waterfallFunctions = [
