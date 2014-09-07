@@ -152,7 +152,6 @@ extractMultipleFileData = () ->
 
 # Start the Waterfall
 waterfallFunctions = [
-  importConfig,
   initializeConnection,
   dropHistoryTable,
   createHistoryTable,
