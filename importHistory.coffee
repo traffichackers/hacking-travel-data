@@ -3,9 +3,10 @@ fs = require 'fs'
 xml2js = require 'xml2js'
 ftp = require 'ftp'
 http = require 'http'
-pg = require 'pg' 
+pg = require 'pg'
 async = require 'async'
 csv = require 'csv'
+zlib = require 'zlib'
 
 # Config
 config = require './config.json'
@@ -23,21 +24,21 @@ initializeConnection = (callback) ->
       callback null, client
 
 dropHistoryTable = (client, callback) ->
-  console.log 'initializing tables'  
+  console.log 'initializing tables'
   client.query config.historyCheckQuery, (err, result) ->
     callback null, client
 
-createHistoryTable = (client, callback) ->      
+createHistoryTable = (client, callback) ->
   client.query config.historyCreateQuery, (err, result) ->
     callback null, client
 
-terminateConnection = (client, callback) ->      
+terminateConnection = (client, callback) ->
   client.end()
   callback null, client
 
 # Data Functions
 importHackReduceData = (client, callback) ->
-  hackReducePath = 
+  hackReducePath =
   hackReduceCsv = fs.readFileSync config.hackReducePath, 'ascii'
   startIndex = 0
   insertHackReduceData(hackReduceCsv, startIndex, client, -1, callback)
@@ -50,16 +51,16 @@ insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, 
       callback null, client
       break
     numChars = endIndex-startIndex
-    datum = hackReduceCsv.substr(startIndex,numChars).split(',')           
+    datum = hackReduceCsv.substr(startIndex,numChars).split(',')
     pairId = datum[0]
     lastUpdated = datum[1]
     travelTime = datum[2]
     if !isNaN(travelTime)
-      hackReduceQuery += "insert into history (pairId, lastUpdated, travelTime) values ("+pairId+",'"+lastUpdated+"',"+travelTime+");\n"
+      hackReduceQuery += "insert into history3 (pairId, lastUpdated, travelTime) values ("+pairId+",'"+lastUpdated+"',"+travelTime+");\n"
     startIndex = endIndex+1
   hackReduceQuery += "end;\n"
   client.query hackReduceQuery, (err, result) ->
-    percentProcessed = parseInt(endIndex/hackReduceCsv.length*100)    
+    percentProcessed = parseInt(endIndex/hackReduceCsv.length*100)
     if percentProcessed isnt oldPercentProcessed
       console.log  percentProcessed + "% processed"
     insertHackReduceData(hackReduceCsv, endIndex+1, client, percentProcessed, callback)
@@ -70,7 +71,7 @@ importManuallyDownloadedData = (client, callback) ->
   for directory in directories
     files = fs.readdirSync '/home/andrew/xml/'+directory
     for file, i in files
-      if file.slice(-4) is '.xml'
+      if file.slice(-7) is '.xml.gz'
         xmlFiles.push '/home/andrew/xml/'+directory+'/'+file
   startFileId = 0
   parser = new xml2js.Parser()
@@ -79,29 +80,30 @@ importManuallyDownloadedData = (client, callback) ->
 insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback) ->
   if xmlFiles.length-1 > startFileId
     xmlFile = xmlFiles[startFileId]
-    data = fs.readFileSync xmlFile, 'ascii'
-    if data.slice(0,5) == '<?xml'
-      manualDownloadsQuery = "begin;\n"
-      parser.parseString data, (err, result) ->
-        travelData = result.btdata?.TRAVELDATA[0]
-        lastUpdated = travelData?.LastUpdated[0]
-        pairData = travelData?.PAIRDATA
+    buffer = fs.readFileSync xmlFile, 'ascii'
+    zlib.gunzip(buffer, function(err, data) {
+      if data.slice(0,5) == '<?xml'
+        manualDownloadsQuery = "begin;\n"
+        parser.parseString data, (err, result) ->
+          travelData = result.btdata?.TRAVELDATA[0]
+          lastUpdated = travelData?.LastUpdated[0]
+          pairData = travelData?.PAIRDATA
 
-        for pair in pairData
-          pairId = pair['PairID'][0]
-          stale = pair['Stale'][0]
-          stale = if stale is 1 then true else false
-          travelTime = pair['TravelTime'][0]
-          speed = pair['Speed'][0]
-          freeFlow = pair['FreeFlow'][0]
-          if !isNaN(travelTime)
-            manualDownloadsQuery += "insert into history (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
-      manualDownloadsQuery += "end;\n"
-      client.query manualDownloadsQuery, (err, result) ->
-        console.log "file " + startFileId + " processed"
+          for pair in pairData
+            pairId = pair['PairID'][0]
+            stale = pair['Stale'][0]
+            stale = if stale is 1 then true else false
+            travelTime = pair['TravelTime'][0]
+            speed = pair['Speed'][0]
+            freeFlow = pair['FreeFlow'][0]
+            if !isNaN(travelTime)
+              manualDownloadsQuery += "insert into history3 (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
+        manualDownloadsQuery += "end;\n"
+        client.query manualDownloadsQuery, (err, result) ->
+          console.log "file " + startFileId + " processed"
+            insertManuallyDownloadedData(xmlFiles, client, startFileId+1, parser, callback)
+      else
         insertManuallyDownloadedData(xmlFiles, client, startFileId+1, parser, callback)
-    else
-      insertManuallyDownloadedData(xmlFiles, client, startFileId+1, parser, callback)
   else
     callback null, client
 
