@@ -101,7 +101,7 @@ insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback)
         manualDownloadsQuery += "end;\n"
         client.query manualDownloadsQuery, (err, result) ->
           console.log "file " + startFileId + " processed"
-            insertManuallyDownloadedData(xmlFiles, client, startFileId+1, parser, callback)
+          insertManuallyDownloadedData(xmlFiles, client, startFileId+1, parser, callback)
       else
         insertManuallyDownloadedData(xmlFiles, client, startFileId+1, parser, callback)
   else
