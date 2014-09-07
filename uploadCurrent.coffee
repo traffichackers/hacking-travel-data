@@ -59,7 +59,7 @@ createCurrent = (data, callback) ->
       utils.initializeConnection (err, client) ->
         client.query currentInsertQuery, (err, result) ->
           utils.terminateConnection client, () ->
-            callback null, current, 'current.json'
+            callback null, current, 'data/current.json'
 
 # Start the Waterfall
 waterfallFunctions = [
