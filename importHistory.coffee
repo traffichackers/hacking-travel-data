@@ -81,7 +81,7 @@ insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback)
   if xmlFiles.length-1 > startFileId
     xmlFile = xmlFiles[startFileId]
     buffer = fs.readFileSync xmlFile, 'ascii'
-    zlib.gunzip(buffer, (err, data) ->
+    zlib.gunzip buffer, (err, data) ->
       if data.slice(0,5) == '<?xml'
         manualDownloadsQuery = "begin;\n"
         parser.parseString data, (err, result) ->
