@@ -83,28 +83,33 @@ insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback)
     xmlFile = xmlFiles[startFileId]
     buffer = fs.readFileSync xmlFile
     zlib.gunzip buffer, (err, data) ->
-      data = data.toString('ascii')
-      if data.slice(0,5) == '<?xml'
-        manualDownloadsQuery = "begin;\n"
-        parser.parseString data, (err, result) ->
-          travelData = result.btdata?.TRAVELDATA[0]
-          lastUpdated = travelData?.LastUpdated[0]
-          pairData = travelData?.PAIRDATA
-
-          for pair in pairData
-            pairId = pair['PairID'][0]
-            stale = pair['Stale'][0]
-            stale = if stale is 1 then true else false
-            travelTime = pair['TravelTime'][0]
-            speed = pair['Speed'][0]
-            freeFlow = pair['FreeFlow'][0]
-            if !isNaN(travelTime)
-              manualDownloadsQuery += "insert into history3 (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
-        manualDownloadsQuery += "end;\n"
-        client.query manualDownloadsQuery, (err, result) ->
-          console.log "file " + startFileId + " processed"
+      try
+        data = data.toString('ascii')
+        if data.slice(0,5) == '<?xml'
+          manualDownloadsQuery = "begin;\n"
+          parser.parseString data, (err, result) ->
+            travelData = result.btdata?.TRAVELDATA[0]
+            lastUpdated = travelData?.LastUpdated[0]
+            pairData = travelData?.PAIRDATA
+            for pair in pairData
+              pairId = pair['PairID'][0]
+              stale = pair['Stale'][0]
+              stale = if stale is 1 then true else false
+              travelTime = pair['TravelTime'][0]
+              speed = pair['Speed'][0]
+              freeFlow = pair['FreeFlow'][0]
+              if !isNaN(travelTime)
+                manualDownloadsQuery += "insert into history3 (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
+          manualDownloadsQuery += "end;\n"
+          client.query manualDownloadsQuery, (err, result) ->
+            console.log xmlFile + " ("+ startFileId + ") processed"
+            insertManuallyDownloadedData(xmlFiles, client, startFileId+1, parser, callback)
+        else
+          console.log xmlFile + " ("+ startFileId + ") xml signature not found, movine to next file"
           insertManuallyDownloadedData(xmlFiles, client, startFileId+1, parser, callback)
-      else
+      catch error
+        console.log error
+        console.log xmlFile + " ("+ startFileId + ") processing error encountered, movine to next file"
         insertManuallyDownloadedData(xmlFiles, client, startFileId+1, parser, callback)
   else
     callback null, client
