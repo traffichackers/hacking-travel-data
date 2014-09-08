@@ -66,6 +66,7 @@ insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, 
     insertHackReduceData(hackReduceCsv, endIndex+1, client, percentProcessed, callback)
 
 importManuallyDownloadedData = (client, callback) ->
+  console.log 'importing manually downloaded data'
   directories = fs.readdirSync config.manualImportPath
   xmlFiles = []
   for directory in directories
@@ -80,8 +81,9 @@ importManuallyDownloadedData = (client, callback) ->
 insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback) ->
   if xmlFiles.length-1 > startFileId
     xmlFile = xmlFiles[startFileId]
-    buffer = fs.readFileSync xmlFile, 'ascii'
+    buffer = fs.readFileSync xmlFile
     zlib.gunzip buffer, (err, data) ->
+      data = data.toString('ascii')
       if data.slice(0,5) == '<?xml'
         manualDownloadsQuery = "begin;\n"
         parser.parseString data, (err, result) ->
@@ -155,7 +157,6 @@ waterfallFunctions = [
   initializeConnection,
   dropHistoryTable,
   createHistoryTable,
-  importHackReduceData,
   importManuallyDownloadedData,
   terminateConnection
 ]
