@@ -49,7 +49,7 @@ cleanDataAndSwapTables = (client, callback) ->
   'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);',
   'ALTER TABLE history RENAME TO history_old;',
   'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;']
-  async.eachSeries postInsertQueries, client.query, function(err)
+  async.eachSeries postInsertQueries, client.query, (err) ->
     callback null, client
 
 # Utilities
