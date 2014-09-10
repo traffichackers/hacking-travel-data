@@ -38,7 +38,8 @@ createCurrent = (data, callback) ->
       current = {}
       current.lastUpdated = results.lastUpdated
       current.pairData = {}
-      currentInsertQuery = ""
+      currentInsertQuery = ''
+      secondaryCurrentInsertQuery = ''
 
       # Iterate over pair ids
       for pair in results.pairData
@@ -54,12 +55,20 @@ createCurrent = (data, callback) ->
           processedPairData.title = pair['Title'][0] if !processedPairData.title?
 
           currentInsertQuery += "insert into history (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+current.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
+          secondaryCurrentInsertQuery += "insert into "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+current.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
           current.pairData[processedPairData.pairId] = processedPairData
 
+      # Insert into primary data store
       utils.initializeConnection (err, client) ->
         client.query currentInsertQuery, (err, result) ->
-          utils.terminateConnection client, () ->
-            callback null, current, 'data/current.json'
+
+          # Insert into secondary data store
+          utils.initializeConnection (err, client) ->
+            client.query secondaryCurrentInsertQuery, (err, result) ->
+
+              # Close the database connection
+              utils.terminateConnection client, () ->
+                callback null, current, 'data/current.json'
 
 # Start the Waterfall
 waterfallFunctions = [

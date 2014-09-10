@@ -92,7 +92,7 @@ module.exports =
   initializeConnection: (callback) ->
     console.log 'initializing connnection'
     connectionString = config.postgresConnectionString
-    client = new pg.Client(config.connectionOptions)
+    client = new pg.Client(config.postGresConnectionOptions)
     client.connect (err) ->
       if err
         return console.error 'could not connect to postgres', err

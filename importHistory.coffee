@@ -12,29 +12,17 @@ zlib = require 'zlib'
 config = require './config.json'
 
 # Connection
-initializeConnection = (callback) ->
-  console.log 'initializing connnection'
-  connectionString = config.postgresConnectionString
-  client = new pg.Client(config.connectionOptions)
-  client.connect (err) ->
-    if err
-      return console.error 'could not connect to postgres', err
-    else
-      console.log 'connection initialized'
-      callback null, client
-
 dropHistoryTable = (client, callback) ->
   console.log 'initializing tables'
-  client.query config.historyCheckQuery, (err, result) ->
+  historyCheckQuery = "drop table "+config.historyStagingTableName+"; "
+  hisotryCheckQuery += "select count(*) as exists from information_schema.tables where table_name = '"+config.historyStagingTableName+"' and table_catalog = 'hackingtravel';"
+  client.query , (err, result) ->
     callback null, client
 
 createHistoryTable = (client, callback) ->
-  client.query config.historyCreateQuery, (err, result) ->
+  historyCreateQuery = "create table "+config.historyStagingTableName+" ( pairId integer, lastUpdated timestamp, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);"
+  client.query historyCreateQuery, (err, result) ->
     callback null, client
-
-terminateConnection = (client, callback) ->
-  client.end()
-  callback null, client
 
 # Data Functions
 importHackReduceData = (client, callback) ->
@@ -43,6 +31,28 @@ importHackReduceData = (client, callback) ->
   startIndex = 0
   insertHackReduceData(hackReduceCsv, startIndex, client, -1, callback)
 
+importManuallyDownloadedData = (client, callback) ->
+  directories = fs.readdirSync config.manualImportPath
+  xmlFiles = []
+  for directory in directories
+    files = fs.readdirSync '/home/andrew/xml/'+directory
+    for file, i in files
+      if file.slice(-7) is '.xml.gz'
+        xmlFiles.push '/home/andrew/xml/'+directory+'/'+file
+  startFileId = 0
+  parser = new xml2js.Parser()
+  insertManuallyDownloadedData xmlFiles, client, startFileId, parser, callback
+
+cleanDataAndSwapTables = (client, callback) ->
+  postInsertQueries = ["INSERT INTO"+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) SELECT DISTINCT pairId, lastUpdated, stale, travelTime, speed, freeFlow FROM "+config.historyStagingTableName+";",
+  'CREATE INDEX lastupdatedidx ON '+config.historyStagingTableNameDeduplicated+' USING btree (lastupdated);',
+  'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);',
+  'ALTER TABLE history RENAME TO history_old;',
+  'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;']
+  async.eachSeries postInsertQueries, client.query, function(err)
+    callback null, client
+
+# Utilities
 insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, callback) ->
   hackReduceQuery = "begin;\n"
   while hackReduceQuery.length < 100000
@@ -56,7 +66,7 @@ insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, 
     lastUpdated = datum[1]
     travelTime = datum[2]
     if !isNaN(travelTime)
-      hackReduceQuery += "insert into history3 (pairId, lastUpdated, travelTime) values ("+pairId+",'"+lastUpdated+"',"+travelTime+");\n"
+      hackReduceQuery += "insert into "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, travelTime) values ("+pairId+",'"+lastUpdated+"',"+travelTime+");\n"
     startIndex = endIndex+1
   hackReduceQuery += "end;\n"
   client.query hackReduceQuery, (err, result) ->
@@ -64,18 +74,6 @@ insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, 
     if percentProcessed isnt oldPercentProcessed
       console.log  percentProcessed + "% processed"
     insertHackReduceData(hackReduceCsv, endIndex+1, client, percentProcessed, callback)
-
-importManuallyDownloadedData = (client, callback) ->
-  directories = fs.readdirSync config.manualImportPath
-  xmlFiles = []
-  for directory in directories
-    files = fs.readdirSync '/home/andrew/xml/'+directory
-    for file, i in files
-      if file.slice(-7) is '.xml.gz'
-        xmlFiles.push '/home/andrew/xml/'+directory+'/'+file
-  startFileId = 0
-  parser = new xml2js.Parser()
-  insertManuallyDownloadedData xmlFiles, client, startFileId, parser
 
 insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback) ->
   if xmlFiles.length-1 > startFileId
@@ -98,7 +96,7 @@ insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback)
               speed = pair['Speed'][0]
               freeFlow = pair['FreeFlow'][0]
               if !isNaN(travelTime)
-                manualDownloadsQuery += "insert into history3 (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
+                manualDownloadsQuery += "insert into "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
           manualDownloadsQuery += "end;\n"
           client.query manualDownloadsQuery, (err, result) ->
             console.log xmlFile + " ("+ startFileId + ") processed"
@@ -113,7 +111,6 @@ insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback)
   else
     callback null, client
 
-# Utilities
 getDirs = (rootDir) ->
   files = fs.readdirSync(rootDir)
   dirs = []
@@ -158,11 +155,12 @@ extractMultipleFileData = () ->
 
 # Start the Waterfall
 waterfallFunctions = [
-  initializeConnection,
+  utils.initializeConnection,
   dropHistoryTable,
   createHistoryTable,
   importHackReduceData,
   importManuallyDownloadedData,
-  terminateConnection
+  cleanDataAndSwapTables,
+  utils.terminateConnection
 ]
 async.waterfall(waterfallFunctions)
