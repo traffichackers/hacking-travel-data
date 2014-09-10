@@ -14,7 +14,7 @@ dropExistingHistory = (client, callback) ->
     callback null, client
 
 insertHistory = (client, callback) ->
-  insertHistory2 = "select * into history2 from (select distinct * from history) as distinctHistory;"
+  insertHistory2 = "select * into history2 from (select distinct * from history4) as distinctHistory;"
   client.query insertHistory2, (err, result) ->
     callback null, client
 
@@ -27,7 +27,7 @@ getHistory = (client, callback) ->
   historyQuery = "select pairid, to_char(lastupdated,'YY-MM-DD HH24:MI') as lastupdated, stale, traveltime, speed, freeflow from history2 where pairid in (10356,10357,10358,10359,10360,10361,10363,10364,10496,10499);"
   client.query historyQuery, (err, result) ->
     console.log 'history received'
-    
+
     # Generate the CSV string
     historyCsv = ''
     for row in result.rows
