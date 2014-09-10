@@ -78,16 +78,16 @@ insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, 
 insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback) ->
   if xmlFiles.length-1 > startFileId
     xmlFile = xmlFiles[startFileId]
-    buffer = fs.readFileSync xmlFile, 'ascii'
+    buffer = fs.readFileSync xmlFile
     zlib.gunzip buffer, (err, data) ->
       try
+        data = data.toString('ascii')
         if data.slice(0,5) == '<?xml'
           manualDownloadsQuery = "begin;\n"
           parser.parseString data, (err, result) ->
             travelData = result.btdata?.TRAVELDATA[0]
             lastUpdated = travelData?.LastUpdated[0]
             pairData = travelData?.PAIRDATA
-
             for pair in pairData
               pairId = pair['PairID'][0]
               stale = pair['Stale'][0]
@@ -158,7 +158,6 @@ waterfallFunctions = [
   utils.initializeConnection,
   dropHistoryTable,
   createHistoryTable,
-  importHackReduceData,
   importManuallyDownloadedData,
   cleanDataAndSwapTables,
   utils.terminateConnection
