@@ -12,20 +12,22 @@ utils = require './utils'
 # Config
 config = require './config.json'
 
-# Connection
-dropHistoryTable = (client, callback) ->
-  console.log 'initializing tables'
-  historyCheckQuery = "drop table "+config.historyStagingTableName+"; "
-  historyCheckQuery += "select count(*) as exists from information_schema.tables where table_name = '"+config.historyStagingTableName+"' and table_catalog = 'hackingtravel';"
-  client.query historyCheckQuery, (err, result) ->
-    callback null, client
-
-createHistoryTable = (client, callback) ->
-  historyCreateQuery = "create table "+config.historyStagingTableName+" ( pairId integer, lastUpdated timestamp, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);"
-  client.query historyCreateQuery, (err, result) ->
-    callback null, client
-
 # Data Functions
+prepareTables = (client, callback) ->
+  
+  issueQuery = (query, internalCallback) ->
+    console.log query
+    client.query query, (err, results) ->
+      internalCallback(null, results)
+
+  preInsertQueries = ["drop table if exists "+config.historyStagingTableName+"; select 1 as test;",
+    "drop table if exists "+config.historyStagingTableNameDeduplicated+"; select 1 as test;",
+    "create table "+config.historyStagingTableName+" ( pairId integer, lastUpdated timestamp, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);",
+    "create table "+config.historyStagingTableNameDeduplicated+" ( pairId integer, lastUpdated timestamp, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);"]
+  async.eachSeries preInsertQueries, issueQuery, (err) ->
+    console.log('eachseries is done')
+    callback null, client
+
 importHackReduceData = (client, callback) ->
   hackReducePath =
   hackReduceCsv = fs.readFileSync config.hackReducePath, 'ascii'
@@ -45,18 +47,19 @@ importManuallyDownloadedData = (client, callback) ->
   insertManuallyDownloadedData xmlFiles, client, startFileId, parser, callback
 
 cleanDataAndSwapTables = (client, callback) ->
-  postInsertQueries = ["INSERT INTO"+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) SELECT DISTINCT pairId, lastUpdated, stale, travelTime, speed, freeFlow FROM "+config.historyStagingTableName+";",
+
+  issueQuery = (query, internalCallback) ->
+    console.log query
+    client.query query, (err, results) ->
+      internalCallback(null, results)
+
+  postInsertQueries = ["INSERT INTO "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) SELECT DISTINCT pairId, lastUpdated, stale, travelTime, speed, freeFlow FROM "+config.historyStagingTableName+";",
   'CREATE INDEX lastupdatedidx ON '+config.historyStagingTableNameDeduplicated+' USING btree (lastupdated);',
   'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);',
   'ALTER TABLE history RENAME TO history_old;',
   'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;']
-  async.eachSeries postInsertQueries, testFunction, (err) ->
+  async.eachSeries postInsertQueries, issueQuery, (err) ->
     callback null, client
-
-testFunction = (queryText, callback) ->
-  console.log(queryText)
-  client.query queryText, (err, result) ->
-    callback
 
 # Utilities
 insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, callback) ->
@@ -162,8 +165,7 @@ extractMultipleFileData = () ->
 # Start the Waterfall
 waterfallFunctions = [
   utils.initializeConnection,
-  dropHistoryTable,
-  createHistoryTable,
+  prepareTables,
   importManuallyDownloadedData,
   cleanDataAndSwapTables,
   utils.terminateConnection
