@@ -50,8 +50,13 @@ cleanDataAndSwapTables = (client, callback) ->
   'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);',
   'ALTER TABLE history RENAME TO history_old;',
   'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;']
-  async.eachSeries postInsertQueries, client.query, (err) ->
+  async.eachSeries postInsertQueries, testFunction, (err) ->
     callback null, client
+
+testFunction = (queryText, callback) ->
+  console.log(queryText)
+  client.query queryText, (err, result) ->
+    callback
 
 # Utilities
 insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, callback) ->
