@@ -7,6 +7,7 @@ pg = require 'pg'
 async = require 'async'
 csv = require 'csv'
 zlib = require 'zlib'
+utils = require './utils'
 
 # Config
 config = require './config.json'
