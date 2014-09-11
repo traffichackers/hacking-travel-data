@@ -36,10 +36,10 @@ importManuallyDownloadedData = (client, callback) ->
   directories = fs.readdirSync config.manualImportPath
   xmlFiles = []
   for directory in directories
-    files = fs.readdirSync '/home/andrew/xml/'+directory
+    files = fs.readdirSync utils.manualImportPath+directory
     for file, i in files
       if file.slice(-7) is '.xml.gz'
-        xmlFiles.push '/home/andrew/xml/'+directory+'/'+file
+        xmlFiles.push utils.manualImportPath+directory+'/'+file
   startFileId = 0
   parser = new xml2js.Parser()
   insertManuallyDownloadedData xmlFiles, client, startFileId, parser, callback
