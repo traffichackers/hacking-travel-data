@@ -15,8 +15,8 @@ config = require './config.json'
 dropHistoryTable = (client, callback) ->
   console.log 'initializing tables'
   historyCheckQuery = "drop table "+config.historyStagingTableName+"; "
-  hisotryCheckQuery += "select count(*) as exists from information_schema.tables where table_name = '"+config.historyStagingTableName+"' and table_catalog = 'hackingtravel';"
-  client.query , (err, result) ->
+  historyCheckQuery += "select count(*) as exists from information_schema.tables where table_name = '"+config.historyStagingTableName+"' and table_catalog = 'hackingtravel';"
+  client.query historyCheckQuery, (err, result) ->
     callback null, client
 
 createHistoryTable = (client, callback) ->
