@@ -16,7 +16,6 @@ config = require './config.json'
 prepareTables = (client, callback) ->
   
   issueQuery = (query, internalCallback) ->
-    console.log query
     client.query query, (err, results) ->
       internalCallback(null, results)
 
@@ -49,15 +48,15 @@ importManuallyDownloadedData = (client, callback) ->
 cleanDataAndSwapTables = (client, callback) ->
 
   issueQuery = (query, internalCallback) ->
-    console.log query
     client.query query, (err, results) ->
       internalCallback(null, results)
 
-  postInsertQueries = ["INSERT INTO "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) SELECT DISTINCT pairId, lastUpdated, stale, travelTime, speed, freeFlow FROM "+config.historyStagingTableName+";",
-  'CREATE INDEX lastupdatedidx ON '+config.historyStagingTableNameDeduplicated+' USING btree (lastupdated);',
-  'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);',
-  'ALTER TABLE history RENAME TO history_old;',
-  'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;']
+  postInsertQueries = ["INSERT INTO "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) SELECT DISTINCT pairId, lastUpdated, stale, travelTime, speed, freeFlow FROM "+config.historyStagingTableName+";"
+  ,'CREATE INDEX lastupdatedidx ON '+config.historyStagingTableNameDeduplicated+' USING btree (lastupdated);'
+  ,'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);'
+  ]
+  #,'ALTER TABLE history RENAME TO history_old;'
+  #,'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;']
   async.eachSeries postInsertQueries, issueQuery, (err) ->
     callback null, client
 
@@ -166,6 +165,7 @@ extractMultipleFileData = () ->
 waterfallFunctions = [
   utils.initializeConnection,
   prepareTables,
+  importHackReduceData,
   importManuallyDownloadedData,
   cleanDataAndSwapTables,
   utils.terminateConnection
