@@ -14,7 +14,7 @@ dropExistingHistory = (client, callback) ->
     callback null, client
 
 insertHistory = (client, callback) ->
-  insertHistory2 = "select * into history2 from (select distinct * from history4) as distinctHistory;"
+  insertHistory2 = "select * into history2 from (select distinct * from history3) as distinctHistory;"
   client.query insertHistory2, (err, result) ->
     callback null, client
 
