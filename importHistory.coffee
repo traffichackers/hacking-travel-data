@@ -14,7 +14,6 @@ config = require './config.json'
 
 # Data Functions
 prepareTables = (client, callback) ->
-  
   issueQuery = (query, internalCallback) ->
     client.query query, (err, results) ->
       internalCallback(null, results)
@@ -23,10 +22,12 @@ prepareTables = (client, callback) ->
     "drop table if exists "+config.historyStagingTableNameDeduplicated+"; select 1 as test;",
     "create table "+config.historyStagingTableName+" ( pairId integer, lastUpdated timestamp, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);",
     "create table "+config.historyStagingTableNameDeduplicated+" ( pairId integer, lastUpdated timestamp, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);"]
+  
   async.eachSeries preInsertQueries, issueQuery, (err) ->
     console.log('eachseries is done')
-    callback null, client
+    callback(null, client)
 
+# Data Functions
 importHackReduceData = (client, callback) ->
   hackReducePath =
   hackReduceCsv = fs.readFileSync config.hackReducePath, 'ascii'
