@@ -18,20 +18,21 @@ prepareTables = (client, callback) ->
     client.query query, (err, results) ->
       internalCallback(null, results)
 
-  preInsertQueries = ["drop table if exists "+config.historyStagingTableName+"; select 1 as test;",
-    "drop table if exists "+config.historyStagingTableNameDeduplicated+"; select 1 as test;",
+  preInsertQueries = ["drop table if exists "+config.historyStagingTableName+";",
+    "drop table if exists "+config.historyStagingTableNameDeduplicated+";",
     "create table "+config.historyStagingTableName+" ( pairId integer, lastUpdated timestamp, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);",
     "create table "+config.historyStagingTableNameDeduplicated+" ( pairId integer, lastUpdated timestamp, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);"]
-  
+
   async.eachSeries preInsertQueries, issueQuery, (err) ->
-    callback(null, client)
+    console.log 'temporary tables created'
+    callback null, client
 
 # Data Functions
 importHackReduceData = (client, callback) ->
   hackReducePath =
   hackReduceCsv = fs.readFileSync config.hackReducePath, 'ascii'
   startIndex = 0
-  insertHackReduceData(hackReduceCsv, startIndex, client, -1, callback)
+  insertHackReduceData hackReduceCsv, startIndex, client, -1, callback
 
 importManuallyDownloadedData = (client, callback) ->
   directories = fs.readdirSync config.manualImportPath
@@ -46,7 +47,7 @@ importManuallyDownloadedData = (client, callback) ->
   insertManuallyDownloadedData xmlFiles, client, startFileId, parser, callback
 
 cleanDataAndSwapTables = (client, callback) ->
-
+  console.log 'making indices and moving tables'
   issueQuery = (query, internalCallback) ->
     client.query query, (err, results) ->
       internalCallback(null, results)
@@ -55,9 +56,11 @@ cleanDataAndSwapTables = (client, callback) ->
   ,'CREATE INDEX lastupdatedidx ON '+config.historyStagingTableNameDeduplicated+' USING btree (lastupdated);'
   ,'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);'
   ]
-  #,'ALTER TABLE history RENAME TO history_old;'
-  #,'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;']
+  ,'ALTER TABLE history RENAME TO history_old;'
+  ,'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;',
+  ,"drop table if exists "+config.historyStagingTableName+";"]
   async.eachSeries postInsertQueries, issueQuery, (err) ->
+    console.log 'history table updated, temporary tables removed'
     callback null, client
 
 # Utilities
@@ -74,7 +77,7 @@ insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, 
     lastUpdated = datum[1]
     travelTime = datum[2]
     if !isNaN(travelTime)
-      hackReduceQuery += "insert into "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, travelTime) values ("+pairId+",'"+lastUpdated+"',"+travelTime+");\n"
+      hackReduceQuery += "insert into "+config.historyStagingTableName+" (pairId, lastUpdated, travelTime) values ("+pairId+",'"+lastUpdated+"',"+travelTime+");\n"
     startIndex = endIndex+1
   hackReduceQuery += "end;\n"
   client.query hackReduceQuery, (err, result) ->
@@ -97,14 +100,14 @@ insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback)
             lastUpdated = travelData?.LastUpdated[0]
             pairData = travelData?.PAIRDATA
             for pair in pairData
-              if utils.isValidPair(pair)              
+              if utils.isValidPair(pair)
                 pairId = pair['PairID'][0]
                 stale = pair['Stale'][0]
                 stale = if stale is 1 then true else false
                 travelTime = pair['TravelTime'][0]
                 speed = pair['Speed'][0]
                 freeFlow = pair['FreeFlow'][0]
-                manualDownloadsQuery += "insert into "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
+                manualDownloadsQuery += "insert into "+config.historyStagingTableName+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
           manualDownloadsQuery += "end;\n"
           console.log manualDownloadsQuery
           client.query manualDownloadsQuery, (err, result) ->
