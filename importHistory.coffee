@@ -24,7 +24,6 @@ prepareTables = (client, callback) ->
     "create table "+config.historyStagingTableNameDeduplicated+" ( pairId integer, lastUpdated timestamp, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);"]
   
   async.eachSeries preInsertQueries, issueQuery, (err) ->
-    console.log('eachseries is done')
     callback(null, client)
 
 # Data Functions
@@ -85,7 +84,7 @@ insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, 
     insertHackReduceData(hackReduceCsv, endIndex+1, client, percentProcessed, callback)
 
 insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback) ->
-  if xmlFiles.length-1 > startFileId
+  if xmlFiles.length > startFileId
     xmlFile = xmlFiles[startFileId]
     buffer = fs.readFileSync xmlFile
     zlib.gunzip buffer, (err, data) ->
@@ -98,15 +97,16 @@ insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback)
             lastUpdated = travelData?.LastUpdated[0]
             pairData = travelData?.PAIRDATA
             for pair in pairData
-              pairId = pair['PairID'][0]
-              stale = pair['Stale'][0]
-              stale = if stale is 1 then true else false
-              travelTime = pair['TravelTime'][0]
-              speed = pair['Speed'][0]
-              freeFlow = pair['FreeFlow'][0]
-              if !isNaN(travelTime)
+              if utils.isValidPair(pair)              
+                pairId = pair['PairID'][0]
+                stale = pair['Stale'][0]
+                stale = if stale is 1 then true else false
+                travelTime = pair['TravelTime'][0]
+                speed = pair['Speed'][0]
+                freeFlow = pair['FreeFlow'][0]
                 manualDownloadsQuery += "insert into "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
           manualDownloadsQuery += "end;\n"
+          console.log manualDownloadsQuery
           client.query manualDownloadsQuery, (err, result) ->
             console.log xmlFile + " ("+ startFileId + ") processed"
             insertManuallyDownloadedData(xmlFiles, client, startFileId+1, parser, callback)
