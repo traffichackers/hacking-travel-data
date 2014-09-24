@@ -6,6 +6,8 @@ sudo apt-get install npm -y
 sudo apt-get install postgresql -y
 sudo apt-get install pgadmin3 -y
 sudo apt-get install libpq-dev -y
-psql -c 'CREATE DATABASE hackingTravel'
-sudo npm install -g coffee-script
+sudo -u postgres createuser hackingtravel
+sudo -u postgres createdb hackingtravel
+sudo -u postgres psql -c "alter user hackingtravel with password '82jl9t';"
 npm install
+sudo npm install -g coffee-script
