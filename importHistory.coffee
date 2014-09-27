@@ -57,7 +57,7 @@ cleanDataAndSwapTables = (client, callback) ->
   ,'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);'
   ]
   ,'ALTER TABLE history RENAME TO history_old;'
-  ,'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;',
+  ,'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;'
   ,"drop table if exists "+config.historyStagingTableName+";"]
   async.eachSeries postInsertQueries, issueQuery, (err) ->
     console.log 'history table updated, temporary tables removed'
