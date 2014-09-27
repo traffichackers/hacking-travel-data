@@ -55,7 +55,6 @@ cleanDataAndSwapTables = (client, callback) ->
   postInsertQueries = ["INSERT INTO "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) SELECT DISTINCT pairId, lastUpdated, stale, travelTime, speed, freeFlow FROM "+config.historyStagingTableName+";"
   ,'CREATE INDEX lastupdatedidx ON '+config.historyStagingTableNameDeduplicated+' USING btree (lastupdated);'
   ,'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);'
-  ]
   ,'ALTER TABLE history RENAME TO history_old;'
   ,'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;'
   ,"drop table if exists "+config.historyStagingTableName+";"]
