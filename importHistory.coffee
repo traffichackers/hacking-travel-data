@@ -20,8 +20,8 @@ prepareTables = (client, callback) ->
 
   preInsertQueries = ["drop table if exists "+config.historyStagingTableName+";",
     "drop table if exists "+config.historyStagingTableNameDeduplicated+";",
-    "create table "+config.historyStagingTableName+" ( pairId integer, lastUpdated timestamp with timezone, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);",
-    "create table "+config.historyStagingTableNameDeduplicated+" ( pairId integer, lastUpdated timestamp with timezone, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);"]
+    "create table "+config.historyStagingTableName+" ( pairId integer, lastUpdated timestamp with time zone, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);",
+    "create table "+config.historyStagingTableNameDeduplicated+" ( pairId integer, lastUpdated timestamp with time zone, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);"]
 
   async.eachSeries preInsertQueries, issueQuery, (err) ->
     console.log 'temporary tables created'
