@@ -22,7 +22,7 @@ createHistoryTable = (client, callback) ->
 # Start the Waterfall
 waterfallFunctions = [
   utils.initializeConnection,
-  createTable,
+  createHistoryTable,
   utils.terminateConnection
 ]
 async.waterfall(waterfallFunctions)
