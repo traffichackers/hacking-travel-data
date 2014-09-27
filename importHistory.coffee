@@ -55,7 +55,6 @@ cleanDataAndSwapTables = (client, callback) ->
   postInsertQueries = ["INSERT INTO "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) SELECT DISTINCT pairId, lastUpdated, stale, travelTime, speed, freeFlow FROM "+config.historyStagingTableName+";"
   ,'CREATE INDEX lastupdatedidx ON '+config.historyStagingTableNameDeduplicated+' USING btree (lastupdated);'
   ,'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);'
-  ]
   ,'ALTER TABLE history RENAME TO history_old;'
   ,'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;'
   ,"drop table if exists "+config.historyStagingTableName+";"]
@@ -109,9 +108,13 @@ insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback)
                 freeFlow = pair['FreeFlow'][0]
                 manualDownloadsQuery += "insert into "+config.historyStagingTableName+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
           manualDownloadsQuery += "end;\n"
-          console.log manualDownloadsQuery
           client.query manualDownloadsQuery, (err, result) ->
-            console.log xmlFile + " ("+ startFileId + ") processed"
+            if err
+              console.log xmlFile + " ("+ startFileId + ") processed with errors:"
+              console.log err
+              console.log ''
+            else
+              console.log xmlFile + " ("+ startFileId + ") processed"
             insertManuallyDownloadedData(xmlFiles, client, startFileId+1, parser, callback)
         else
           console.log xmlFile + " ("+ startFileId + ") xml signature not found, movine to next file"
