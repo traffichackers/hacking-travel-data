@@ -16,7 +16,7 @@ prepareData = (client, callback) ->
 
   preparationQueries = ["drop table history2;",
     "select * into history2 from (select distinct * from (select * from history3 union select * from history) as combo) as distinctHistory;",
-    "CREATE INDEX pairidIdx ON history2 (pairid);"];
+    "CREATE INDEX pairidIdx ON history2 (pairid);"]
 
   async.eachSeries preparationQueries, issueQuery, (err) ->
     callback(null, client)
