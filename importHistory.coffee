@@ -35,13 +35,13 @@ importHackReduceData = (client, callback) ->
   insertHackReduceData hackReduceCsv, startIndex, client, -1, callback
 
 importManuallyDownloadedData = (client, callback) ->
-  directories = fs.readdirSync config.manualImportPath
+  directories = fs.readdirSync config.xmlDirectory
   xmlFiles = []
   for directory in directories
-    files = fs.readdirSync config.manualImportPath+directory
+    files = fs.readdirSync config.xmlDirectory+directory
     for file, i in files
       if file.slice(-7) is '.xml.gz'
-        xmlFiles.push config.manualImportPath+directory+'/'+file
+        xmlFiles.push config.xmlDirectory+directory+'/'+file
   startFileId = 0
   parser = new xml2js.Parser()
   insertManuallyDownloadedData xmlFiles, client, startFileId, parser, callback

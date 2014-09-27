@@ -27,7 +27,7 @@ createCurrent = (data, callback) ->
   fileName = a.slice(0,7)+a.slice(8,11)+a.slice(11,13)+a.slice(14,16)
 
   # Write XML to disk
-  fullFileName = config.xmlExportPath+fileName+'.xml.gz'
+  fullFileName = config.xmlDirectory+fileName+'.xml.gz'
 
   zlib.gzip data, (_, result) ->
     fs.writeFile(fullFileName, result)
