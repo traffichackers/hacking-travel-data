@@ -107,6 +107,10 @@ insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback)
                 speed = pair['Speed'][0]
                 freeFlow = pair['FreeFlow'][0]
                 manualDownloadsQuery += "insert into "+config.historyStagingTableName+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
+              else
+                console.log 'bad pair found:'
+                console.log pair
+                console.log ''
           manualDownloadsQuery += "end;\n"
           client.query manualDownloadsQuery, (err, result) ->
             if err
