@@ -7,7 +7,7 @@ config = require './config.json'  # Server Configuration
 
 getTodayData = (client, callback) ->
   console.log 'pulling today data from database'
-  todayDataQuery = "select pairId, lastUpdated::timestamp::time, travelTimefrom history where lastUpdated::date = now()::date order by pairId, lastUpdated"
+  todayDataQuery = "select pairId, lastUpdated::timestamp, travelTime from history where lastUpdated::date = now()::date order by pairId, lastUpdated"
   client.query todayDataQuery, (err, result) ->
     if err
       console.log(err)
@@ -23,7 +23,8 @@ getTodayData = (client, callback) ->
         # Populate Data Fields
         today[row.pairid].push Math.round(row.traveltime)
         if !today.Start
-          today.Start = row.lastupdated.substr(0,5)
+          console.log row.lastupdated.toISOString()
+          today.Start = row.lastupdated.toISOString()
 
       utils.terminateConnection client, () ->
         callback null, today, 'data/today.json'
