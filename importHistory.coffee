@@ -56,9 +56,9 @@ insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, 
     if percentProcessed isnt oldPercentProcessed
       console.log  percentProcessed + "% processed"
     if done is false
-      callback null, client
-    else
       insertHackReduceData(hackReduceCsv, endIndex+1, client, percentProcessed, callback)
+    else
+      callback null, client
 
 importManuallyDownloadedData = (client, callback) ->
   directories = fs.readdirSync config.xmlDirectory
