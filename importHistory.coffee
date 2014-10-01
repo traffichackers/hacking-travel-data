@@ -34,41 +34,13 @@ importHackReduceData = (client, callback) ->
   startIndex = 0
   insertHackReduceData hackReduceCsv, startIndex, client, -1, callback
 
-importManuallyDownloadedData = (client, callback) ->
-  directories = fs.readdirSync config.xmlDirectory
-  xmlFiles = []
-  for directory in directories
-    files = fs.readdirSync config.xmlDirectory+directory
-    for file, i in files
-      if file.slice(-7) is '.xml.gz'
-        xmlFiles.push config.xmlDirectory+directory+'/'+file
-  startFileId = 0
-  parser = new xml2js.Parser()
-  insertManuallyDownloadedData xmlFiles, client, startFileId, parser, callback
-
-cleanDataAndSwapTables = (client, callback) ->
-  console.log 'making indices and moving tables'
-  issueQuery = (query, internalCallback) ->
-    client.query query, (err, results) ->
-      internalCallback(null, results)
-
-  postInsertQueries = ["INSERT INTO "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) SELECT DISTINCT pairId, lastUpdated, stale, travelTime, speed, freeFlow FROM "+config.historyStagingTableName+";"
-  ,'CREATE INDEX lastupdatedidx ON '+config.historyStagingTableNameDeduplicated+' USING btree (lastupdated);'
-  ,'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);'
-  ,'ALTER TABLE history RENAME TO history_old;'
-  ,'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;'
-  ,"drop table if exists "+config.historyStagingTableName+";"]
-  async.eachSeries postInsertQueries, issueQuery, (err) ->
-    console.log 'history table updated, temporary tables removed'
-    callback null, client
-
-# Utilities
 insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, callback) ->
+  done = false;
   hackReduceQuery = "begin;\n"
   while hackReduceQuery.length < 100000
     endIndex = hackReduceCsv.indexOf('\n',startIndex)
     if endIndex is -1
-      callback null, client
+      done = true
       break
     numChars = endIndex-startIndex
     datum = hackReduceCsv.substr(startIndex,numChars).split(',')
@@ -83,7 +55,22 @@ insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, 
     percentProcessed = parseInt(endIndex/hackReduceCsv.length*100)
     if percentProcessed isnt oldPercentProcessed
       console.log  percentProcessed + "% processed"
-    insertHackReduceData(hackReduceCsv, endIndex+1, client, percentProcessed, callback)
+    if done is false
+      callback null, client
+    else
+      insertHackReduceData(hackReduceCsv, endIndex+1, client, percentProcessed, callback)
+
+importManuallyDownloadedData = (client, callback) ->
+  directories = fs.readdirSync config.xmlDirectory
+  xmlFiles = []
+  for directory in directories
+    files = fs.readdirSync config.xmlDirectory+directory
+    for file, i in files
+      if file.slice(-7) is '.xml.gz'
+        xmlFiles.push config.xmlDirectory+directory+'/'+file
+  startFileId = 0
+  parser = new xml2js.Parser()
+  insertManuallyDownloadedData xmlFiles, client, startFileId, parser, callback
 
 insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback) ->
   if xmlFiles.length > startFileId
@@ -130,6 +117,23 @@ insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback)
   else
     callback null, client
 
+cleanDataAndSwapTables = (client, callback) ->
+  console.log 'making indices and moving tables'
+  issueQuery = (query, internalCallback) ->
+    client.query query, (err, results) ->
+      internalCallback(null, results)
+
+  postInsertQueries = ["INSERT INTO "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) SELECT DISTINCT pairId, lastUpdated, stale, travelTime, speed, freeFlow FROM "+config.historyStagingTableName+";"
+  ,'CREATE INDEX lastupdatedidx ON '+config.historyStagingTableNameDeduplicated+' USING btree (lastupdated);'
+  ,'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);'
+  ,'ALTER TABLE history RENAME TO history_old;'
+  ,'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;'
+  ,"drop table if exists "+config.historyStagingTableName+";"]
+  async.eachSeries postInsertQueries, issueQuery, (err) ->
+    console.log 'history table updated, temporary tables removed'
+    callback null, client
+
+# Utilities
 getDirs = (rootDir) ->
   files = fs.readdirSync(rootDir)
   dirs = []
