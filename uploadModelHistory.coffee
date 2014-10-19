@@ -11,9 +11,22 @@ config = require './config.json'  # Server Configuration
 betterDescriptions = require './data/betterDescriptions.json'   # Replacement descriptions for pair ids
 
 getHistory = (client, callback) ->
-  historyQuery = new qs("select pairid as pair_id, to_char(lastupdated,'YYYY-MM-DD HH24:MI:SS') as insert_time, traveltime as travel_time from history where lastupdated > '2014-10-01' limit 10;");
+  historyQuery = new qs("select pairid as pair_id, to_char(lastupdated,'YYYY-MM-DD HH24:MI:SS') as insert_time, traveltime as travel_time from history where lastupdated > '2014-10-01';");
   historyStream = client.query(historyQuery);
   pg2csv = new stream.Transform( { objectMode: true } )
+  pg2csv._transform = (row, encoding, done) ->
+    keys = Object.keys row
+    if this.headersSet
+      historyCsv = ''
+    else
+      historyCsv = keys.join ','
+      this.headersSet = true
+    tempRow = []
+    tempRow.push row[key] for key in keys
+   
+    historyCsv += '\n' + tempRow.join ','
+    this.push historyCsv
+    done()
   csvStream = historyStream.pipe pg2csv
   utils.uploadFileStream csvStream, 'model_history.csv', () ->
     console.log 'upload complete'
@@ -21,21 +34,6 @@ getHistory = (client, callback) ->
     console.log 'stream complete'
     utils.terminateConnection client, () ->
       console.log 'connection terminated'
-
-pg2csv._transform = function (row, encoding, done) {
-  keys = Object.keys row
-  tempRow = []
-  for key in keys
-    tempRow.push row[key]
-  historyCsv += tempRow.join(',')+'\n'
-
-  lines.forEach(this.push.bind(this))
-  done()
-}
-
-  console.log 'uploading history'
-  utils.terminateConnection client, () ->
-    callback null, historyCsv, 'model_history.csv'
 
 # Start the Waterfall
 waterfallFunctions = [
