@@ -75,6 +75,15 @@ module.exports =
       counter = 0
       coreUpload ftpClient, fileList, counter, callback
 
+  uploadFileStream: (fileStream, fileName, callback) ->
+    initializeFtpConnection (ftpClient) ->
+      console.log 'uploading '+fileName
+      ftpClient.put fileStream, fileName, (err) ->
+        console.log 'finished uploading '+fileName
+        throw err if err
+        ftpClient.end()
+        callback null
+
   uploadFile: (fileText, fileName, callback) ->
 
     # Convert to string if needed
