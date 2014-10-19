@@ -11,7 +11,7 @@ config = require './config.json'  # Server Configuration
 betterDescriptions = require './data/betterDescriptions.json'   # Replacement descriptions for pair ids
 
 getHistory = (client, callback) ->
-  historyQuery = new qs("select pairid as pair_id, to_char(lastupdated,'YYYY-MM-DD HH24:MI:SS') as insert_time, traveltime as travel_time from history where lastupdated > '2014-10-01';");
+  historyQuery = new qs("select pairid as pair_id, to_char(lastupdated,'YYYY-MM-DD HH24:MI:SS') as insert_time, traveltime as travel_time from history where lastupdated > '2014-07-01';");
   historyStream = client.query(historyQuery);
   pg2csv = new stream.Transform( { objectMode: true } )
   pg2csv._transform = (row, encoding, done) ->
