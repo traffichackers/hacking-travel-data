@@ -38,7 +38,7 @@ createCurrent = (data, callback) ->
       current = {}
 
       lastUpdated = new Date results.lastUpdated
-      current.lastUpdated = lastUpdated.toLocaleDateString()
+      current.lastUpdated = lastUpdated.toLocaleString()
       current.pairData = {}
       currentInsertQuery = ''
       secondaryCurrentInsertQuery = ''
