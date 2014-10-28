@@ -36,7 +36,9 @@ createCurrent = (data, callback) ->
     # Parse XML and insert
     utils.parseMassDotXml data, (results) ->
       current = {}
-      current.lastUpdated = results.lastUpdated
+
+      lastUpdated = new Date results.lastUpdated
+      current.lastUpdated = lastUpdated.toLocaleDateString()
       current.pairData = {}
       currentInsertQuery = ''
       secondaryCurrentInsertQuery = ''
