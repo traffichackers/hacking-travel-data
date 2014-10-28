@@ -5,8 +5,10 @@
   "main": "index.js",
   "dependencies": {
     "async": "^0.9.0",
+    "aws-sdk": "^2.0.23",
     "better-require": "0.0.3",
     "csv": "^0.4.0",
+    "dotenv": "^0.4.0",
     "ftp": "^0.3.7",
     "pg": "^3.4.1",
     "pg-query-stream": "^0.6.0",

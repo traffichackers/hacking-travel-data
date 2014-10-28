@@ -5,6 +5,8 @@ pg = require 'pg'
 xml2js = require 'xml2js'
 http = require 'http'
 csv = require 'csv'
+aws = require 'aws-sdk'
+dotenv = require 'dotenv'
 parser = new xml2js.Parser()
 
 # Local Includes
@@ -83,6 +85,28 @@ module.exports =
         throw err if err
         ftpClient.end()
         callback null
+
+  uploadAwsFile: (fileData, fileName, callback) ->
+    dotenv.load()
+
+    s3 = new aws.S3()
+
+    aws.config.update({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+      region: process.env.AWS_REGION
+    })
+
+    params =
+      Bucket: 'traffichackers',
+      Key: fileName
+      Body: fileData
+
+    s3.putObject params, (err, data) ->
+      if err
+        console.log err, err.stack
+      else
+        console.log data
 
   uploadFile: (fileText, fileName, callback) ->
 
