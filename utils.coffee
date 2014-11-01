@@ -60,6 +60,25 @@ coreUpload = (ftpClient, fileList, counter, callback) ->
       else
         coreUpload ftpClient, fileList, counter+1, callback
 
+# AWS
+uploadAwsFile = (fileData, fileName, callback) ->
+  dotenv.load()
+  s3 = new aws.S3()
+  aws.config.update({
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    region: process.env.AWS_REGION
+  })
+  params =
+    Bucket: 'traffichackers',
+    Key: fileName
+    Body: fileData
+  s3.putObject params, (err, data) ->
+    if err
+      console.log err, err.stack
+    else
+      console.log data
+
 module.exports =
 
   isValidPair: (pair) ->
@@ -86,28 +105,6 @@ module.exports =
         ftpClient.end()
         callback null
 
-  uploadAwsFile: (fileData, fileName, callback) ->
-    dotenv.load()
-
-    s3 = new aws.S3()
-
-    aws.config.update({
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-      region: process.env.AWS_REGION
-    })
-
-    params =
-      Bucket: 'traffichackers',
-      Key: fileName
-      Body: fileData
-
-    s3.putObject params, (err, data) ->
-      if err
-        console.log err, err.stack
-      else
-        console.log data
-
   uploadFile: (fileText, fileName, callback) ->
 
     # Convert to string if needed
@@ -115,12 +112,15 @@ module.exports =
       fileText = JSON.stringify fileText
     fileBuffer = new Buffer(fileText)
     initializeFtpConnection (ftpClient) ->
-      console.log 'uploading '+fileName
+      console.log 'uploading '+fileName+' to ftp'
       ftpClient.put fileBuffer, fileName, (err) ->
-        console.log 'finished uploading '+fileName
+        console.log 'finished uploading '+fileName+' to ftp'
         throw err if err
         ftpClient.end()
-        callback null
+        console.log 'uploading '+fileName+' to aws'
+        uploadAwsFile fileText, fileName, () ->
+          console.log 'finished uploading '+fileName+' to aws'
+          callback null
 
   initializeConnection: (callback) ->
     console.log 'initializing connnection'

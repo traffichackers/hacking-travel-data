@@ -59,7 +59,6 @@ createCurrent = (data, callback) ->
           current.pairData[processedPairData.pairId] = processedPairData
 
       # Insert into primary data store
-      ###
       utils.initializeConnection (err, client) ->
         client.query currentInsertQuery, (err, result) ->
 
@@ -68,13 +67,12 @@ createCurrent = (data, callback) ->
 
             # Close the database connection
             utils.terminateConnection client, () ->
-      ###
-      callback null, JSON.stringify(current), 'data/current.json'
+              callback null, JSON.stringify(current), 'data/current.json'
 
 # Start the Waterfall
 waterfallFunctions = [
   getCurrentData,
   createCurrent,
-  utils.uploadAwsFile
+  utils.uploadFile
 ]
 async.waterfall(waterfallFunctions)
