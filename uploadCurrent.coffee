@@ -36,7 +36,9 @@ createCurrent = (data, callback) ->
     # Parse XML and insert
     utils.parseMassDotXml data, (results) ->
       current = {}
-      current.lastUpdated = results.lastUpdated
+
+      lastUpdated = new Date results.lastUpdated
+      current.lastUpdated = lastUpdated.toLocaleString()
       current.pairData = {}
       currentInsertQuery = ''
       secondaryCurrentInsertQuery = ''
@@ -54,8 +56,8 @@ createCurrent = (data, callback) ->
           processedPairData['title'] = betterDescriptions[processedPairData.pairId]
           processedPairData.title = pair['Title'][0] if !processedPairData.title?
 
-          currentInsertQuery += "insert into history (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+current.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
-          secondaryCurrentInsertQuery += "insert into "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+current.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
+          currentInsertQuery += "insert into history (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+results.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
+          secondaryCurrentInsertQuery += "insert into "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+results.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
           current.pairData[processedPairData.pairId] = processedPairData
 
       # Insert into primary data store
