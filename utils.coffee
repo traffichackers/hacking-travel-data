@@ -7,6 +7,7 @@ http = require 'http'
 csv = require 'csv'
 aws = require 'aws-sdk'
 dotenv = require 'dotenv'
+zlib = require 'zlib'
 parser = new xml2js.Parser()
 
 # Local Includes
@@ -62,22 +63,26 @@ coreUpload = (ftpClient, fileList, counter, callback) ->
 
 # AWS
 uploadAwsFile = (fileData, fileName, callback) ->
-  dotenv.load()
-  s3 = new aws.S3()
-  aws.config.update({
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-    region: process.env.AWS_REGION
-  })
-  params =
-    Bucket: 'traffichackers',
-    Key: fileName
-    Body: fileData
-  s3.putObject params, (err, data) ->
-    if err
-      console.log err, err.stack
-    else
-      console.log data
+  zlib.gzip fileData, (error, compressedFileData) ->
+    dotenv.load()
+    s3 = new aws.S3()
+    aws.config.update({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+      region: process.env.AWS_REGION
+    })
+    params =
+      Bucket: 'traffichackers'
+      Key: fileName
+      Body: compressedFileData
+      ContentType: "application/json"
+      ContentEncoding: "gzip"
+
+    s3.putObject params, (err, data) ->
+      if err
+        console.log err, err.stack
+      else
+        console.log data
 
 module.exports =
 
