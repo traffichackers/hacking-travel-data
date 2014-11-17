@@ -115,17 +115,17 @@ module.exports =
     # Convert to string if needed
     if typeof fileText is "object"
       fileText = JSON.stringify fileText
-    fileBuffer = new Buffer(fileText)
-    initializeFtpConnection (ftpClient) ->
-      console.log 'uploading '+fileName+' to ftp'
-      ftpClient.put fileBuffer, fileName, (err) ->
-        console.log 'finished uploading '+fileName+' to ftp'
-        throw err if err
-        ftpClient.end()
-        console.log 'uploading '+fileName+' to aws'
-        uploadAwsFile fileText, fileName, () ->
-          console.log 'finished uploading '+fileName+' to aws'
-          callback null
+    #fileBuffer = new Buffer(fileText)
+    #initializeFtpConnection (ftpClient) ->
+    #  console.log 'uploading '+fileName+' to ftp'
+    #  ftpClient.put fileBuffer, fileName, (err) ->
+    #    console.log 'finished uploading '+fileName+' to ftp'
+    #    throw err if err
+    #    ftpClient.end()
+    #    console.log 'uploading '+fileName+' to aws'
+    uploadAwsFile fileText, fileName, () ->
+      console.log 'finished uploading '+fileName+' to aws'
+      callback null
 
   initializeConnection: (callback) ->
     console.log 'initializing connnection'
