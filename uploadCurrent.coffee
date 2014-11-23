@@ -61,7 +61,10 @@ createCurrent = (data, callback) ->
           current.pairData[processedPairData.pairId] = processedPairData
 
       # Insert into primary data store
-      utils.initializeConnection (err, client) ->
+      if config.noInsert
+        callback null, JSON.stringify(current), 'data/current.json'
+      else
+        utils.initializeConnection (err, client) ->
         client.query currentInsertQuery, (err, result) ->
 
           # Insert into secondary data store
