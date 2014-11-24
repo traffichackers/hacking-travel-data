@@ -7,7 +7,7 @@ config = require './config.json'  # Server Configuration
 
 getTodayData = (client, callback) ->
   console.log 'pulling today data from database'
-  todayDataQuery = "select pairId, lastUpdated::timestamp, travelTime from history where lastUpdated::date = now()::date order by pairId, lastUpdated"
+  todayDataQuery = "select pairId, lastUpdated::timestamp, speed from history where lastUpdated::date = now()::date order by pairId, lastUpdated"
   client.query todayDataQuery, (err, result) ->
     if err
       console.log(err)
