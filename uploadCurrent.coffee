@@ -65,14 +65,14 @@ createCurrent = (data, callback) ->
         callback null, JSON.stringify(current), 'data/current.json'
       else
         utils.initializeConnection (err, client) ->
-        client.query currentInsertQuery, (err, result) ->
+          client.query currentInsertQuery, (err, result) ->
 
-          # Insert into secondary data store
-          client.query secondaryCurrentInsertQuery, (err, result) ->
+            # Insert into secondary data store
+            client.query secondaryCurrentInsertQuery, (err, result) ->
 
-            # Close the database connection
-            utils.terminateConnection client, () ->
-              callback null, JSON.stringify(current), 'data/current.json'
+              # Close the database connection
+              utils.terminateConnection client, () ->
+                callback null, JSON.stringify(current), 'data/current.json'
 
 # Start the Waterfall
 waterfallFunctions = [
