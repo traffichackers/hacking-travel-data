@@ -21,7 +21,7 @@ getTodayData = (client, callback) ->
           today[row.pairid] = []
 
         # Populate Data Fields
-        today[row.pairid].push Math.round(row.traveltime)
+        today[row.pairid].push Math.round(row.speed)
         if !today.Start
           console.log row.lastupdated.toISOString()
           today.Start = row.lastupdated.toISOString()
