@@ -1,5 +1,4 @@
 # Library
-pg = require 'pg'
 async = require 'async'
 utils = require './utils'
 
