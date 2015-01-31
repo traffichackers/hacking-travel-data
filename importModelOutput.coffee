@@ -1,4 +1,4 @@
-# Library
+# Libraries
 fs = require 'fs'
 pg = require 'pg'
 async = require 'async'
@@ -16,7 +16,9 @@ prepareTables = (client, callback) ->
 
   preInsertQueries = [
     "drop table if exists model_results;",
-    "create table model_results (predictionStartTime timestamp with time zone, predictionTime timestamp with time zone, pairId integer, percentile varchar(3), predictedSpeed double precision);"
+    "create table model_results (predictionStartTime timestamp with time zone,
+       predictionTime timestamp with time zone, pairId integer, percentile varchar(3),
+       predictedSpeed double precision);"
   ]
 
   async.eachSeries preInsertQueries, issueQuery, (err) ->
@@ -28,13 +30,12 @@ getFiles = (client, callback) ->
   getNextFile files, client, callback
 
 getNextFile = (files, client, callback) ->
-  if files.length
+  if files.length > 0
     importFile files[0], client, () ->
       files.shift()
-      getNextFile files, client, () ->
-        callback()
+      getNextFile files, client, callback
   else
-    callback()
+    callback null, client
 
 importFile = (file, client, callback) ->
   if file.slice(-8) is '.json.gz'
@@ -47,41 +48,30 @@ importFile = (file, client, callback) ->
       for pairId of data
         if pairId isnt 'Start'
           for percentile of data[pairId]
-            predictionStartTime = new Date(data['Start']);
+            predictionStartTime = new Date(data['Start'])
+            predictionStartTimeString = predictionStartTime.toISOString()
             percentileData = data[pairId][percentile]  
             if percentileData isnt null
               predictionTime = predictionStartTime
               for predictedSpeed in percentileData
-                modelResultsQuery += "insert into model_results (predictionStartTime, predictionTime, pairId, percentile, predictedSpeed)"
-                modelResultsQuery += " values ('"+predictionStartTime.toISOString()+"', '"+predictionTime.toISOString()+"', "+pairId+", '"+percentile+"', "+predictedSpeed+");\n"
-                predictionTime = new Date(predictionStartTime.getTime() + 5*60000/1000)
+                modelResultsQuery += "insert into model_results (predictionStartTime,
+                  predictionTime, pairId, percentile, predictedSpeed) values
+                  ('"+predictionStartTimeString+"', '"+predictionTime.toISOString()+"',
+                  "+pairId+", '"+percentile+"', "+predictedSpeed+");\n"
+                predictionTime = new Date(predictionTime.getTime() + 300)
       client.query modelResultsQuery, (err, result) ->
         if err
           console.log err
         else
           console.log file + " processed"
-        callback();
-
-# Utilities
-getDirs = (rootDir) ->
-  files = fs.readdirSync(rootDir)
-  dirs = []
-
-  for file in files
-    if file[0] != '.'
-      filePath = "#{rootDir}/#{file}"
-      stat = fs.statSync(filePath)
-      if (stat.isDirectory())
-        dirs.push(file)
-
-  return dirs
+        callback()
 
 # Start the Waterfall
 waterfallFunctions = [
   utils.initializeConnection,
   prepareTables,
   getFiles,
-  #utils.terminateConnection
+  utils.terminateConnection
 ]
 async.waterfall(waterfallFunctions)
 
