@@ -1,6 +1,5 @@
 # Libraries
 fs = require 'fs'
-pg = require 'pg'
 async = require 'async'
 zlib = require 'zlib'
 utils = require './utils'
@@ -50,7 +49,7 @@ importFile = (file, client, callback) ->
           for percentile of data[pairId]
             predictionStartTime = new Date(data['Start'])
             predictionStartTimeString = predictionStartTime.toISOString()
-            percentileData = data[pairId][percentile]  
+            percentileData = data[pairId][percentile]
             if percentileData isnt null
               predictionTime = predictionStartTime
               for predictedSpeed in percentileData
@@ -74,4 +73,3 @@ waterfallFunctions = [
   utils.terminateConnection
 ]
 async.waterfall(waterfallFunctions)
-

@@ -1,11 +1,9 @@
 # Includes
 fs = require 'fs'
-xml2js = require 'xml2js'
 http = require 'http'
 async = require 'async'
-csv = require 'csv'
 zlib = require 'zlib'
-utils = require './utils'  # Require
+utils = require './utils'
 config = require './config.json'  # Server Configuration
 betterDescriptions = require './data/betterDescriptions.json'   # Replacement descriptions for pair ids
 

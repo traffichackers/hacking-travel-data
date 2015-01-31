@@ -1,9 +1,6 @@
 # Library
 fs = require 'fs'
 xml2js = require 'xml2js'
-ftp = require 'ftp'
-http = require 'http'
-pg = require 'pg'
 async = require 'async'
 csv = require 'csv'
 zlib = require 'zlib'

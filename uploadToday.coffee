@@ -1,6 +1,4 @@
 # Includes
-fs = require 'fs'
-http = require 'http'
 async = require 'async'
 utils = require './utils'  # Require
 config = require './config.json'  # Server Configuration
