@@ -4,7 +4,9 @@ http = require 'http'
 async = require 'async'
 zlib = require 'zlib'
 utils = require './utils'
-config = require './config.json'  # Server Configuration
+dotenv = require 'dotenv'
+dotenv.load()
+
 betterDescriptions = require './data/betterDescriptions.json'   # Replacement descriptions for pair ids
 
 # Get the raw MassDOT XML file
@@ -15,7 +17,11 @@ getCurrentData = (callback) ->
       str += chunk
     response.on 'end', () ->
       callback null, str
-  http.request(config.massDotConfig, httpCallback).end()
+  massDotConfig = {
+    "host": process.env.MASS_DOT_HOST,
+    "path": process.env.MASS_DOT_HOST
+  }
+  http.request(massDotConfig, httpCallback).end()
 
 # Create the current.json object from the download
 createCurrent = (data, callback) ->
@@ -25,7 +31,7 @@ createCurrent = (data, callback) ->
   fileName = a.slice(0,7)+a.slice(8,11)+a.slice(11,13)+a.slice(14,16)
 
   # Write XML to disk
-  fullFileName = config.xmlDirectory+'hackingtravel/'+fileName+'.xml.gz'
+  fullFileName = process.env.XML_DIRECTORY+'hackingtravel/'+fileName+'.xml.gz'
 
   zlib.gzip data, (_, result) ->
     fs.writeFile(fullFileName, result)
@@ -55,7 +61,7 @@ createCurrent = (data, callback) ->
           processedPairData.title = pair['Title'][0] if !processedPairData.title?
 
           currentInsertQuery += "insert into history (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+results.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
-          secondaryCurrentInsertQuery += "insert into "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+results.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
+          secondaryCurrentInsertQuery += "insert into "+process.env.HISTORY_STAGING_TABLE_NAME_DEDUPLICATED+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+results.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
           current.pairData[processedPairData.pairId] = processedPairData
 
       # Insert into primary data store

@@ -5,9 +5,8 @@ async = require 'async'
 csv = require 'csv'
 zlib = require 'zlib'
 utils = require './utils'
-
-# Config
-config = require './config.json'
+dotenv = require 'dotenv'
+dotenv.load()
 
 # Data Functions
 prepareTables = (client, callback) ->
@@ -15,10 +14,10 @@ prepareTables = (client, callback) ->
     client.query query, (err, results) ->
       internalCallback(null, results)
 
-  preInsertQueries = ["drop table if exists "+config.historyStagingTableName+";",
-    "drop table if exists "+config.historyStagingTableNameDeduplicated+";",
-    "create table "+config.historyStagingTableName+" ( pairId integer, lastUpdated timestamp with time zone, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);",
-    "create table "+config.historyStagingTableNameDeduplicated+" ( pairId integer, lastUpdated timestamp with time zone, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);"]
+  preInsertQueries = ["drop table if exists "+process.env.HISTORY_STAGING_TABLE_NAME+";",
+    "drop table if exists "+process.env.HISTORY_STAGING_TABLE_NAMEDeduplicated+";",
+    "create table "+process.env.HISTORY_STAGING_TABLE_NAME+" ( pairId integer, lastUpdated timestamp with time zone, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);",
+    "create table "+process.env.HISTORY_STAGING_TABLE_NAMEDeduplicated+" ( pairId integer, lastUpdated timestamp with time zone, stale boolean, travelTime double precision, speed double precision, freeFlow double precision);"]
 
   async.eachSeries preInsertQueries, issueQuery, (err) ->
     console.log 'temporary tables created'
@@ -27,7 +26,7 @@ prepareTables = (client, callback) ->
 # Data Functions
 importHackReduceData = (client, callback) ->
   hackReducePath =
-  hackReduceCsv = fs.readFileSync config.hackReducePath, 'ascii'
+  hackReduceCsv = fs.readFileSync process.env.HACK_REDUCE_PATH, 'ascii'
   startIndex = 0
   insertHackReduceData hackReduceCsv, startIndex, client, -1, callback
 
@@ -45,7 +44,7 @@ insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, 
     lastUpdated = datum[1]
     travelTime = datum[2]
     if !isNaN(travelTime)
-      hackReduceQuery += "insert into "+config.historyStagingTableName+" (pairId, lastUpdated, travelTime) values ("+pairId+",'"+lastUpdated+"',"+travelTime+");\n"
+      hackReduceQuery += "insert into "+process.env.HISTORY_STAGING_TABLE_NAME+" (pairId, lastUpdated, travelTime) values ("+pairId+",'"+lastUpdated+"',"+travelTime+");\n"
     startIndex = endIndex+1
   hackReduceQuery += "end;\n"
   client.query hackReduceQuery, (err, result) ->
@@ -58,13 +57,13 @@ insertHackReduceData = (hackReduceCsv, startIndex, client, oldPercentProcessed, 
       callback null, client
 
 importManuallyDownloadedData = (client, callback) ->
-  directories = fs.readdirSync config.xmlDirectory
+  directories = fs.readdirSync process.env.XML_DIRECTORY
   xmlFiles = []
   for directory in directories
-    files = fs.readdirSync config.xmlDirectory+directory
+    files = fs.readdirSync process.env.XML_DIRECTORY+directory
     for file, i in files
       if file.slice(-7) is '.xml.gz'
-        xmlFiles.push config.xmlDirectory+directory+'/'+file
+        xmlFiles.push process.env.XML_DIRECTORY+directory+'/'+file
   startFileId = 0
   parser = new xml2js.Parser()
   insertManuallyDownloadedData xmlFiles, client, startFileId, parser, callback
@@ -90,7 +89,7 @@ insertManuallyDownloadedData = (xmlFiles, client, startFileId, parser, callback)
                 travelTime = pair['TravelTime'][0]
                 speed = pair['Speed'][0]
                 freeFlow = pair['FreeFlow'][0]
-                manualDownloadsQuery += "insert into "+config.historyStagingTableName+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
+                manualDownloadsQuery += "insert into "+process.env.HISTORY_STAGING_TABLE_NAME+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+pairId+",'"+lastUpdated+"',"+stale+","+travelTime+","+speed+","+freeFlow+");\n"
               else
                 console.log 'bad pair found:'
                 console.log pair
@@ -120,12 +119,12 @@ cleanDataAndSwapTables = (client, callback) ->
     client.query query, (err, results) ->
       internalCallback(null, results)
 
-  postInsertQueries = ["INSERT INTO "+config.historyStagingTableNameDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) SELECT DISTINCT pairId, lastUpdated, stale, travelTime, speed, freeFlow FROM "+config.historyStagingTableName+";"
-  ,'CREATE INDEX lastupdatedidx ON '+config.historyStagingTableNameDeduplicated+' USING btree (lastupdated);'
-  ,'CREATE INDEX pairididx ON '+config.historyStagingTableNameDeduplicated+' USING btree (pairid);'
+  postInsertQueries = ["INSERT INTO "+process.env.HISTORY_STAGING_TABLE_NAMEDeduplicated+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) SELECT DISTINCT pairId, lastUpdated, stale, travelTime, speed, freeFlow FROM "+process.env.HISTORY_STAGING_TABLE_NAME+";"
+  ,'CREATE INDEX lastupdatedidx ON '+process.env.HISTORY_STAGING_TABLE_NAMEDeduplicated+' USING btree (lastupdated);'
+  ,'CREATE INDEX pairididx ON '+process.env.HISTORY_STAGING_TABLE_NAMEDeduplicated+' USING btree (pairid);'
   ,'ALTER TABLE history RENAME TO history_old;'
-  ,'ALTER TABLE '+config.historyStagingTableNameDeduplicated+' RENAME TO history;'
-  ,"drop table if exists "+config.historyStagingTableName+";"]
+  ,'ALTER TABLE '+process.env.HISTORY_STAGING_TABLE_NAMEDeduplicated+' RENAME TO history;'
+  ,"drop table if exists "+process.env.HISTORY_STAGING_TABLE_NAME+";"]
   async.eachSeries postInsertQueries, issueQuery, (err) ->
     console.log 'history table updated, temporary tables removed'
     callback null, client

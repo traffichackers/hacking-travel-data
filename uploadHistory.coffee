@@ -1,7 +1,8 @@
 # Includes
 async = require 'async'
 utils = require './utils'
-config = require './config.json'  # Server Configuration
+dotenv = require 'dotenv'
+dotenv.load()
 
 getHistory = (client, callback) ->
   historyQuery = "select pairid, to_char(lastupdated,'YYYY-MM-DD HH24:MI') as lastupdated, stale, traveltime, speed, freeflow from history where pairid in (10356,10357,10358,10359,10360,10361,10363,10364,10496,10499);"

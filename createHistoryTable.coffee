@@ -2,9 +2,6 @@
 async = require 'async'
 utils = require './utils'
 
-# Config
-config = require './config.json'
-
 createHistoryTable = (client, callback) ->
 
   issueQuery = (query, internalCallback) ->

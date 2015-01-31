@@ -3,7 +3,8 @@ async = require 'async'
 qs = require 'pg-query-stream'
 stream = require 'stream'
 utils = require './utils'
-config = require './config.json'  # Server Configuration
+dotenv = require 'dotenv'
+dotenv.load()
 
 getHistory = (client, callback) ->
   historyQuery = new qs "select pairid as pair_id, to_char(lastupdated,'YYYY-MM-DD HH24:MI:SS') as insert_time, traveltime as travel_time from history where lastupdated > '2014-01-01';"

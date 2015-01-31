@@ -9,9 +9,7 @@ aws = require 'aws-sdk'
 dotenv = require 'dotenv'
 zlib = require 'zlib'
 parser = new xml2js.Parser()
-
-# Local Includes
-config = require './config.json'
+dotenv.load()
 
 # Private Utility Methods
 getDirs = (rootDir) ->
@@ -42,7 +40,12 @@ initializeFtpConnection = (callback) ->
     ftpClient = new ftp
     ftpClient.on 'ready', () ->
       callback(ftpClient)
-    ftpClient.connect config.ftpConfig
+    ftpConfig = {
+      "host": process.env.FTP_CONFIG_HOST,
+      "user": process.env.FTP_CONFIG_USER,
+      "password": process.env.FTP_PASSWORD
+    }
+    ftpClient.connect ftpConfig
 
 coreUpload = (ftpClient, fileList, counter, callback) ->
     # Extract Names
@@ -129,8 +132,14 @@ module.exports =
 
   initializeConnection: (callback) ->
     console.log 'initializing connnection'
-    connectionString = config.postgresConnectionString
-    client = new pg.Client(config.postGresConnectionOptions)
+    connectionString = process.env.POSTGRES_CONNECTION_STRING
+    postGresConnectionOptions = {
+      "host": process.env.POSTGRES_CONNECTION_HOST,
+      "user": process.env.POSTGRES_CONNECTION_USER,
+      "password": process.env.POSTGRES_CONNECTION_PASSWORD,
+      "database": process.env.POSTGRES_CONNECTION_DATABASE
+    }
+    client = new pg.Client(postGresConnectionOptions)
     client.connect (err) ->
       if err
         return console.error 'could not connect to postgres', err

@@ -1,7 +1,8 @@
 # Includes
 async = require 'async'
-utils = require './utils'  # Require
-config = require './config.json'  # Server Configuration
+utils = require './utils'
+dotenv = require 'dotenv'
+dotenv.load()
 
 getTodayData = (client, callback) ->
   console.log 'pulling today data from database'

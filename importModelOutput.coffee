@@ -3,9 +3,8 @@ fs = require 'fs'
 async = require 'async'
 zlib = require 'zlib'
 utils = require './utils'
-
-# Config
-config = require './config.json'
+dotenv = require 'dotenv'
+dotenv.load()
 
 # Data Functions
 prepareTables = (client, callback) ->
@@ -25,7 +24,7 @@ prepareTables = (client, callback) ->
     callback null, client
 
 getFiles = (client, callback) ->
-  files = fs.readdirSync config.modelResultsPath
+  files = fs.readdirSync process.env.MODEL_RESULTS_PATH
   getNextFile files, client, callback
 
 getNextFile = (files, client, callback) ->
@@ -38,7 +37,7 @@ getNextFile = (files, client, callback) ->
 
 importFile = (file, client, callback) ->
   if file.slice(-8) is '.json.gz'
-    prediction = config.modelResultsPath+'/'+file
+    prediction = process.env.MODEL_RESULTS_PATH+'/'+file
     buffer = fs.readFileSync prediction
     zlib.gunzip buffer, (err, data) ->
       console.log "error:" + err if err
