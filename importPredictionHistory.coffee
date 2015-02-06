@@ -42,33 +42,58 @@ importFile = (file, client, callback) ->
     zlib.gunzip buffer, (err, data) ->
       console.log "error:" + err if err
       modelResultsQuery = ""
-      data = JSON.parse(data)
-      for pairId of data
-        if pairId isnt 'Start'
-          for percentile of data[pairId]
-            predictionStartTime = new Date(data['Start'])
-            predictionStartTimeString = predictionStartTime.toISOString()
-            percentileData = data[pairId][percentile]
-            if percentileData isnt null
-              predictionTime = predictionStartTime
-              for predictedSpeed in percentileData
-                modelResultsQuery += "insert into model_results (predictionStartTime,
-                  predictionTime, pairId, percentile, predictedSpeed) values
-                  ('"+predictionStartTimeString+"', '"+predictionTime.toISOString()+"',
-                  "+pairId+", '"+percentile+"', "+predictedSpeed+");\n"
-                predictionTime = new Date(predictionTime.getTime() + 300)
-      client.query modelResultsQuery, (err, result) ->
-        if err
-          console.log err
-        else
-          console.log file + " processed"
-        callback()
+      data = JSON.parse data
+      processPredictionData data, client, callback
 
-# Start the Waterfall
-waterfallFunctions = [
-  utils.initializeConnection,
-  prepareTables,
-  getFiles,
-  utils.terminateConnection
-]
-async.waterfall(waterfallFunctions)
+processPredictionData = (data, client, callback) ->
+  for pairId of data
+    if pairId isnt 'Start'
+      for percentile of data[pairId]
+        predictionStartTime = new Date(data['Start'])
+        predictionStartTimeString = predictionStartTime.toISOString()
+        percentileData = data[pairId][percentile]
+        if percentileData isnt null
+          predictionTime = predictionStartTime
+          for predictedSpeed in percentileData
+            modelResultsQuery += "insert into model_results (predictionStartTime,
+              predictionTime, pairId, percentile, predictedSpeed) values
+              ('"+predictionStartTimeString+"', '"+predictionTime.toISOString()+"',
+              "+pairId+", '"+percentile+"', "+predictedSpeed+");\n"
+            predictionTime = new Date(predictionTime.getTime() + 300)
+  client.query modelResultsQuery, (err, result) ->
+    if err
+      console.log err
+    else
+      console.log file + " processed"
+    callback()
+
+importStream = (client, callback) ->
+  predictionsRaw = ''
+  process.stdin.setEncoding 'utf8'
+  process.stdin.on('readable', () ->
+    chunk = process.stdin.read()
+    if chunk isnt null
+      predictionsRaw += chunk
+
+  process.stdin.on 'end', () ->
+    #predictions = JSON.parse predictionsRaw
+    #processPredictionData predictions, client, callback
+
+main = () ->
+  onDisk = process.argv[2]
+  if onDisk
+    waterfallFunctions = [
+      utils.initializeConnection,
+      prepareTables,
+      getFiles,
+      utils.terminateConnection
+    ]
+  else
+    waterfallFunctions = [
+      utils.initializeConnection,
+      importStream,
+      utils.terminateConnection
+    ]
+  async.waterfall waterfallFunctions
+
+#main()
