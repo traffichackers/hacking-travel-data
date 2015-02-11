@@ -19,13 +19,12 @@ getCurrentData = (callback) ->
       callback null, str
   massDotConfig = {
     "host": process.env.MASS_DOT_HOST,
-    "path": process.env.MASS_DOT_HOST
+    "path": process.env.MASS_DOT_PATH
   }
   http.request(massDotConfig, httpCallback).end()
 
 # Create the current.json object from the download
 createCurrent = (data, callback) ->
-
   date = new Date()
   a = date.toISOString().replace(/[T\-:]/g,'_')
   fileName = a.slice(0,7)+a.slice(8,11)+a.slice(11,13)+a.slice(14,16)
@@ -36,11 +35,10 @@ createCurrent = (data, callback) ->
   zlib.gzip data, (_, result) ->
     fs.writeFile(fullFileName, result)
     console.log fullFileName + ' written'
-
+   
     # Parse XML and insert
     utils.parseMassDotXml data, (results) ->
       current = {}
-
       lastUpdated = new Date results.lastUpdated
       current.lastUpdated = lastUpdated.toLocaleString()
       current.pairData = {}
@@ -64,16 +62,24 @@ createCurrent = (data, callback) ->
           secondaryCurrentInsertQuery += "insert into "+process.env.HISTORY_STAGING_TABLE_NAME_DEDUPLICATED+" (pairId, lastUpdated, stale, travelTime, speed, freeFlow) values ("+processedPairData.pairId+",'"+results.lastUpdated+"',"+processedPairData.stale+","+processedPairData.travelTime+","+processedPairData.speed+","+processedPairData.freeFlow+");\n"
           current.pairData[processedPairData.pairId] = processedPairData
 
-      # Insert into primary data store
-      utils.initializeConnection (err, client) ->
-        client.query currentInsertQuery, (err, result) ->
+      if process.env.POSTGRES_INSERT is 'false'
+        console.log 'uploading data'
+        callback null, JSON.stringify(current), 'data/current.json'
 
-          # Insert into secondary data store
-          client.query secondaryCurrentInsertQuery, (err, result) ->
+      else
+        console.log 'inserting traffic data into database'
 
-            # Close the database connection
-            utils.terminateConnection client, () ->
-              callback null, JSON.stringify(current), 'data/current.json'
+        # Insert into primary data store
+        utils.initializeConnection (err, client) ->
+          client.query currentInsertQuery, (err, result) ->
+
+            # Insert into secondary data store
+            client.query secondaryCurrentInsertQuery, (err, result) ->
+
+              # Close the database connection
+              utils.terminateConnection client, () ->
+                console.log 'uploading data'
+                callback null, JSON.stringify(current), 'data/current.json'
 
 # Start the Waterfall
 waterfallFunctions = [
