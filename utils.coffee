@@ -75,7 +75,7 @@ uploadAwsFile = (fileData, fileName, callback) ->
       region: process.env.AWS_REGION
     })
     params =
-      Bucket: 'www.traffichackers.com'
+      Bucket: process.env.AWS_BUCKET
       Key: fileName
       Body: compressedFileData
       ContentType: "application/json"
