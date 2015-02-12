@@ -6,7 +6,7 @@ dotenv.load()
 
 getTodayData = (client, callback) ->
   console.log 'pulling today data from database'
-  todayDataQuery = "select pairId, lastUpdated::timestamp, travelTime from history where lastUpdated::date = now()::date order by pairId, lastUpdated"
+  todayDataQuery = "select pairId, lastUpdated::timestamp, speed from history where lastUpdated::date = now()::date order by pairId, lastUpdated"
   client.query todayDataQuery, (err, result) ->
     if err
       console.log(err)
@@ -20,7 +20,7 @@ getTodayData = (client, callback) ->
           today[row.pairid] = []
 
         # Populate Data Fields
-        today[row.pairid].push Math.round(row.traveltime)
+        today[row.pairid].push Math.round(row.speed)
         if !today.Start
           console.log row.lastupdated.toISOString()
           today.Start = row.lastupdated.toISOString()
