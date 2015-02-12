@@ -13,6 +13,8 @@ getTodayData = (client, callback) ->
     else
       console.log 'today data pulled'
       today = {}
+      currentPairId = -1
+      currentMinute = -1
       for row in result.rows
 
         # Initialize objects, if necessary
@@ -20,7 +22,11 @@ getTodayData = (client, callback) ->
           today[row.pairid] = []
 
         # Populate Data Fields
-        today[row.pairid].push Math.round(row.speed)
+        if currentMinute isnt row.lastupdated.getMinutes() and currentPairId isnt row.pairId
+          today[row.pairid].push Math.round(row.speed)
+          currentPairId = row.pairid
+          currentMinute = row.lastupdated.getMinutes()
+        
         if !today.Start
           console.log row.lastupdated.toISOString()
           today.Start = row.lastupdated.toISOString()
