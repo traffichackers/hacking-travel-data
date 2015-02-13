@@ -58,7 +58,10 @@ main = () ->
   if lookBack is 'today'
     query += "lastUpdated::date = now()::date order by pairId, lastUpdated"
   else if lookBack.slice(-1) in ['h','d','m','y']
-    query += "lastUpdated > " + lookBack + " order by pairId, lastUpdated"
+    unitMap = {'h':'hour', 'd':'day', 'm':'month', 'y':'year'}
+    lookBackUnits = unitMap[lookBack.slice(-1)]
+    lookBackValue = lookBack.substr 0, lookBack.length-1
+    query += "lastUpdated > now() - INTERVAL '"+lookBackValue+" "+lookBackUnits+"'" 
   else
     query = "select pairid, lastUpdated::timestamp as lastupdated, speed, from history where lastUpdated::date > " + lookBack
 
