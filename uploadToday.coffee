@@ -22,7 +22,7 @@ getTodayData = (client, callback) ->
           today[row.pairid] = []
 
         # Populate Data Fields
-        if currentMinute isnt row.lastupdated.getMinutes() and currentPairId isnt row.pairId
+        if currentMinute isnt row.lastupdated.getMinutes()
           today[row.pairid].push Math.round(row.speed)
           currentPairId = row.pairid
           currentMinute = row.lastupdated.getMinutes()
