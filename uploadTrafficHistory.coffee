@@ -4,6 +4,10 @@ utils = require './utils'
 dotenv = require 'dotenv'
 dotenv.load()
 
+processor = (client, query, fileName, callback) ->
+  console.log 'hi'
+  callback null, 'failure', fileName
+
 processCsv = (client, query, fileName, callback) ->
   console.log 'running csv'
   client.query query, (err, result) ->
@@ -23,7 +27,7 @@ processCsv = (client, query, fileName, callback) ->
     utils.terminateConnection client, () ->
       callback null, historyCsv, fileName
 
-processJson = (client, query, fileName, callback) ->
+processJson = (query, fileName, client, callback) ->
   console.log('running json')
   client.query query, (err, result) ->
     if err
@@ -38,7 +42,7 @@ processJson = (client, query, fileName, callback) ->
           today[row.pairid] = []
 
         # Populate Data Fields
-        today[row.pairid].push Math.round(row.traveltime)
+        today[row.pairid].push Math.round(row.speed)
         if !today.Start
           console.log row.lastupdated.toISOString()
           today.Start = row.lastupdated.toISOString()
@@ -50,13 +54,18 @@ main = () ->
 
   # Create Query
   lookBack = process.argv[2]
-  query = "select pairid, lastUpdated::timestamp as lastupdated, speed, from history where "
+  query = "select pairid, lastUpdated::timestamp as lastupdated, speed from history where "
   if lookBack is 'today'
     query += "lastUpdated::date = now()::date order by pairId, lastUpdated"
   else if lookBack.slice(-1) in ['h','d','m','y']
-    query += "lastUpdated > " + lookBack + " order by pairId, lastUpdated"
+    unitMap = {'h':'hour', 'd':'day', 'm':'month', 'y':'year'}
+    lookBackUnits = unitMap[lookBack.slice(-1)]
+    lookBackValue = lookBack.substr 0, lookBack.length-1
+    query += "lastUpdated > now() - INTERVAL '"+lookBackValue+" "+lookBackUnits+"'" 
   else
     query = "select pairid, lastUpdated::timestamp as lastupdated, speed, from history where lastUpdated::date > " + lookBack
+
+  console.log query
 
   # Set Output Format
   fileType = process.argv[3]
@@ -74,7 +83,7 @@ main = () ->
   # Start the Waterfall
   waterfallFunctions = [
     utils.initializeConnection,
-    processor
+    async.apply(processor, query, fileName), 
     utils.uploadFile
   ]
   async.waterfall(waterfallFunctions)
