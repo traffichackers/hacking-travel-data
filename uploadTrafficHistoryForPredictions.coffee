@@ -7,7 +7,7 @@ dotenv = require 'dotenv'
 dotenv.load()
 
 getHistory = (client, callback) ->
-  historyQuery = new qs "select pairid as pair_id, to_char(lastupdated,'YYYY-MM-DD HH24:MI:SS') as insert_time, traveltime as travel_time from history where lastupdated > '2014-01-01';"
+  historyQuery = new qs "select pairid as pair_id, to_char(lastupdated,'YYYY-MM-DD HH24:MI:SS') as insert_time, speed from history where lastupdated > '2014-01-01';"
   historyStream = client.query historyQuery
   pg2csv = new stream.Transform { objectMode: true }
   pg2csv._transform = (row, encoding, done) ->
