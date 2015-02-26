@@ -43,13 +43,14 @@ importFile = (file, client, callback) ->
       console.log "error:" + err if err
       modelResultsQuery = ""
       data = JSON.parse data
-      processPredictionData data, client, callback
+      processPredictionData file, data, client, callback
 
-processPredictionData = (data, client, callback) ->
+processPredictionData = (file, data, client, callback) ->
+  modelResultsQuery = ''
   for pairId of data
     if pairId isnt 'Start'
       for percentile of data[pairId]
-        predictionStartTime = new Date(data['Start'])
+        predictionStartTime = new Date(data['Start']+"-05:00")
         predictionStartTimeString = predictionStartTime.toISOString()
         percentileData = data[pairId][percentile]
         if percentileData isnt null
@@ -59,7 +60,7 @@ processPredictionData = (data, client, callback) ->
               predictionTime, pairId, percentile, predictedSpeed) values
               ('"+predictionStartTimeString+"', '"+predictionTime.toISOString()+"',
               "+pairId+", '"+percentile+"', "+predictedSpeed+");\n"
-            predictionTime = new Date(predictionTime.getTime() + 300)
+            predictionTime = new Date(predictionTime.getTime() + 300000)
   client.query modelResultsQuery, (err, result) ->
     if err
       console.log err
@@ -70,18 +71,17 @@ processPredictionData = (data, client, callback) ->
 importStream = (client, callback) ->
   predictionsRaw = ''
   process.stdin.setEncoding 'utf8'
-  process.stdin.on('readable', () ->
+  process.stdin.on 'readable', () ->
     chunk = process.stdin.read()
     if chunk isnt null
       predictionsRaw += chunk
 
-  process.stdin.on 'end', () ->
-    #predictions = JSON.parse predictionsRaw
-    #processPredictionData predictions, client, callback
+  #process.stdin.on 'end', () ->
+  #  predictions = JSON.parse predictionsRaw
+  #  processPredictionData predictions, client, callback
 
 main = () ->
-  onDisk = process.argv[2]
-  if onDisk
+  if 'onDisk' is process.argv[2]
     waterfallFunctions = [
       utils.initializeConnection,
       prepareTables,
@@ -96,4 +96,4 @@ main = () ->
     ]
   async.waterfall waterfallFunctions
 
-#main()
+main()
