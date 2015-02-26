@@ -13,8 +13,8 @@ prepareTables = (client, callback) ->
       internalCallback(null, results)
 
   preInsertQueries = [
-    "drop table if exists model_results;",
-    "create table model_results (predictionStartTime timestamp with time zone,
+    "drop table if exists model_results_new;",
+    "create table model_results_new (predictionStartTime timestamp with time zone,
        predictionTime timestamp with time zone, pairId integer, percentile varchar(3),
        predictedSpeed double precision);"
   ]
@@ -56,7 +56,7 @@ processPredictionData = (file, data, client, callback) ->
         if percentileData isnt null
           predictionTime = predictionStartTime
           for predictedSpeed in percentileData
-            modelResultsQuery += "insert into model_results (predictionStartTime,
+            modelResultsQuery += "insert into model_results_new (predictionStartTime,
               predictionTime, pairId, percentile, predictedSpeed) values
               ('"+predictionStartTimeString+"', '"+predictionTime.toISOString()+"',
               "+pairId+", '"+percentile+"', "+predictedSpeed+");\n"
@@ -67,6 +67,28 @@ processPredictionData = (file, data, client, callback) ->
     else
       console.log file + " processed"
     callback()
+
+finalizeTables = (client, callback) ->
+  console.log 'finalizing import'
+
+  issueQuery = (query, internalCallback) ->
+    client.query query, (err, result) ->
+      if err
+        console.log err
+      else
+        console.log file + " processed"
+      internalCallback()
+
+  postInsertQueries = [
+    'CREATE INDEX predictionstarttimeidx ON model_results_new USING btree (predictionStartTime);'
+    ,'CREATE INDEX predictiontimeidx ON model_results_new USING btree (predictionTime);'
+    ,'CREATE INDEX percentileidx ON model_results_new USING btree (percentile);'
+    ,'CREATE INDEX pairididx ON model_results_new USING btree (pairId);'
+    ,'ALTER TABLE model_results RENAME TO model_results_old;'
+    ,'ALTER TABLE model_results_new RENAME TO model_results;'
+  ]
+  async.eachSeries postInsertQueries, issueQuery, (err) ->
+    callback null, client
 
 importStream = (client, callback) ->
   predictionsRaw = ''
@@ -86,6 +108,7 @@ main = () ->
       utils.initializeConnection,
       prepareTables,
       getFiles,
+      finalizeTables
       utils.terminateConnection
     ]
   else
