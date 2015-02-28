@@ -6,6 +6,8 @@ utils = require './utils'
 dotenv = require 'dotenv'
 dotenv.load()
 
+modelResultsTable = process.argv[2]
+
 # Data Functions
 prepareTables = (client, callback) ->
   issueQuery = (query, internalCallback) ->
@@ -13,14 +15,14 @@ prepareTables = (client, callback) ->
       internalCallback(null, results)
 
   preInsertQueries = [
-    "drop table if exists model_results_new;",
-    "create table model_results_new (predictionStartTime timestamp with time zone,
+    "drop table if exists "+modelResultsTable+"_new;",
+    "create table "+modelResultsTable+"_new (predictionStartTime timestamp with time zone,
        predictionTime timestamp with time zone, pairId integer, percentile varchar(3),
-       predictedSpeed double precision);"
+       min smallint, 10 smallint, 25 smallint, 50 smallint, 75 smallint, 90 smallint, max smallint);"
   ]
 
   async.eachSeries preInsertQueries, issueQuery, (err) ->
-    console.log 'fresh model_results table created'
+    console.log 'fresh '+modelResultsTable+' table created'
     callback null, client
 
 getFiles = (client, callback) ->
@@ -47,20 +49,34 @@ importFile = (file, client, callback) ->
 
 processPredictionData = (file, data, client, callback) ->
   modelResultsQuery = ''
+  predictionStartTime = new Date(data['Start']+"-05:00")
+  predictionStartTimeString = predictionStartTime.toISOString()
+  percentiles = ['min', '10', '25', '50', '75', '90', 'max']
+
+  # Process Each PairID in the File
   for pairId of data
     if pairId isnt 'Start'
-      for percentile of data[pairId]
-        predictionStartTime = new Date(data['Start']+"-05:00")
-        predictionStartTimeString = predictionStartTime.toISOString()
-        percentileData = data[pairId][percentile]
-        if percentileData isnt null
-          predictionTime = predictionStartTime
-          for predictedSpeed in percentileData
-            modelResultsQuery += "insert into model_results_new (predictionStartTime,
-              predictionTime, pairId, percentile, predictedSpeed) values
-              ('"+predictionStartTimeString+"', '"+predictionTime.toISOString()+"',
-              "+pairId+", '"+percentile+"', "+predictedSpeed+");\n"
-            predictionTime = new Date(predictionTime.getTime() + 300000)
+      predictionTime = predictionStartTime
+      predictions = data[pairId]
+      predictionsLength = pairData.length
+      if predictionsLength isnt 0 or predictions[0] isnt null
+        while i < predictionsLength
+
+          # Coalesce Prediction Times
+          predictionString = ""
+          for percentile in percentiles {
+            prediction = predictions[percentile][i]
+            predictionString += prediction + ", "
+
+          # Insert Data
+          modelResultsQuery += "insert into "+modelResultsTable+"_new (predictionStartTime,
+            predictionTime, pairId, min, 10, 25, 50, 75, 90, max) values
+            ('"+predictionStartTimeString+"', '"+predictionTime.toISOString()+"',
+            "+pairId+", "+ predictionString +");\n"
+          predictionTime = new Date(predictionTime.getTime() + 300000)
+          i++
+
+  # Insert the File Data
   client.query modelResultsQuery, (err, result) ->
     if err
       console.log err
@@ -78,12 +94,12 @@ finalizeTables = (client, callback) ->
       internalCallback()
 
   postInsertQueries = [
-    'drop table if exists model_results;'
-    ,'CREATE INDEX mrpredictionstarttimeidx ON model_results_new USING btree (predictionStartTime);'
-    ,'CREATE INDEX mrpredictiontimeidx ON model_results_new USING btree (predictionTime);'
-    ,'CREATE INDEX mrpercentileidx ON model_results_new USING btree (percentile);'
-    ,'CREATE INDEX mrpairididx ON model_results_new USING btree (pairId);'
-    ,'ALTER TABLE model_results_new RENAME TO model_results;'
+    'drop table if exists '+modelResultsTable+';'
+    ,'CREATE INDEX mrpredictionstarttimeidx ON '+modelResultsTable+'_new USING btree (predictionStartTime);'
+    ,'CREATE INDEX mrpredictiontimeidx ON '+modelResultsTable+'_new USING btree (predictionTime);'
+    ,'CREATE INDEX mrpercentileidx ON '+modelResultsTable+'_new USING btree (percentile);'
+    ,'CREATE INDEX mrpairididx ON '+modelResultsTable+'_new USING btree (pairId);'
+    ,'ALTER TABLE '+modelResultsTable+'_new RENAME TO '+modelResultsTable+';'
   ]
   async.eachSeries postInsertQueries, issueQuery, (err) ->
     callback null, client
