@@ -71,7 +71,7 @@ processPredictionData = (file, data, client, callback) ->
 
           # Insert Data
           modelResultsQuery += "insert into "+modelResultsTable+"_new (predictionStartTime,
-            predictionTime, pairId, min, 10, 25, 50, 75, 90, max) values
+            predictionTime, pairId, pMin, p10, p25, p50, p75, p90, pMax) values
             ('"+predictionStartTimeString+"', '"+predictionTime.toISOString()+"',
             "+pairId+", "+ predictionString +");\n"
           predictionTime = new Date(predictionTime.getTime() + 300000)
