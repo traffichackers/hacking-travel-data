@@ -62,13 +62,13 @@ processPredictionData = (file, data, client, callback) ->
       if predictionsLength isnt 0 or predictions[0] isnt null
         i = 0
         while i < predictionsLength
-           
+
           # Coalesce Prediction Times
           predictionString = ""
           for percentile in percentiles
             prediction = predictions[percentile][i]
             predictionString += prediction + ", "
-          
+
           # Insert Data
           modelResultsQuery += "insert into "+modelResultsTable+"_new (predictionStartTime,
             predictionTime, pairId, min, 10, 25, 50, 75, 90, max) values
@@ -76,7 +76,7 @@ processPredictionData = (file, data, client, callback) ->
             "+pairId+", "+ predictionString +");\n"
           predictionTime = new Date(predictionTime.getTime() + 300000)
           i++
-  
+
   # Insert the File Data
   client.query modelResultsQuery, (err, result) ->
     if err
@@ -96,10 +96,9 @@ finalizeTables = (client, callback) ->
 
   postInsertQueries = [
     'drop table if exists '+modelResultsTable+';'
-    ,'CREATE INDEX mrpredictionstarttimeidx ON '+modelResultsTable+'_new USING btree (predictionStartTime);'
-    ,'CREATE INDEX mrpredictiontimeidx ON '+modelResultsTable+'_new USING btree (predictionTime);'
-    ,'CREATE INDEX mrpercentileidx ON '+modelResultsTable+'_new USING btree (percentile);'
-    ,'CREATE INDEX mrpairididx ON '+modelResultsTable+'_new USING btree (pairId);'
+    ,'CREATE INDEX '+modelResultsTable+'pstidx ON '+modelResultsTable+'_new USING btree (predictionStartTime);'
+    ,'CREATE INDEX '+modelResultsTable+'ptidx ON '+modelResultsTable+'_new USING btree (predictionTime);'
+    ,'CREATE INDEX '+modelResultsTable+'piidx ON '+modelResultsTable+'_new USING btree (pairId);'
     ,'ALTER TABLE '+modelResultsTable+'_new RENAME TO '+modelResultsTable+';'
   ]
   async.eachSeries postInsertQueries, issueQuery, (err) ->
