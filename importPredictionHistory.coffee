@@ -13,8 +13,8 @@ prepareTables = (client, callback) ->
       internalCallback(null, results)
 
   preInsertQueries = [
-    "drop table if exists model_results;",
-    "create table model_results (predictionStartTime timestamp with time zone,
+    "drop table if exists model_results_new;",
+    "create table model_results_new (predictionStartTime timestamp with time zone,
        predictionTime timestamp with time zone, pairId integer, percentile varchar(3),
        predictedSpeed double precision);"
   ]
@@ -43,23 +43,24 @@ importFile = (file, client, callback) ->
       console.log "error:" + err if err
       modelResultsQuery = ""
       data = JSON.parse data
-      processPredictionData data, client, callback
+      processPredictionData file, data, client, callback
 
-processPredictionData = (data, client, callback) ->
+processPredictionData = (file, data, client, callback) ->
+  modelResultsQuery = ''
   for pairId of data
     if pairId isnt 'Start'
       for percentile of data[pairId]
-        predictionStartTime = new Date(data['Start'])
+        predictionStartTime = new Date(data['Start']+"-05:00")
         predictionStartTimeString = predictionStartTime.toISOString()
         percentileData = data[pairId][percentile]
         if percentileData isnt null
           predictionTime = predictionStartTime
           for predictedSpeed in percentileData
-            modelResultsQuery += "insert into model_results (predictionStartTime,
+            modelResultsQuery += "insert into model_results_new (predictionStartTime,
               predictionTime, pairId, percentile, predictedSpeed) values
               ('"+predictionStartTimeString+"', '"+predictionTime.toISOString()+"',
               "+pairId+", '"+percentile+"', "+predictedSpeed+");\n"
-            predictionTime = new Date(predictionTime.getTime() + 300)
+            predictionTime = new Date(predictionTime.getTime() + 300000)
   client.query modelResultsQuery, (err, result) ->
     if err
       console.log err
@@ -67,25 +68,45 @@ processPredictionData = (data, client, callback) ->
       console.log file + " processed"
     callback()
 
+finalizeTables = (client, callback) ->
+  console.log 'finalizing import'
+
+  issueQuery = (query, internalCallback) ->
+    client.query query, (err, result) ->
+      if err
+        console.log err
+      internalCallback()
+
+  postInsertQueries = [
+    'drop table if exists model_results;'
+    ,'CREATE INDEX mrpredictionstarttimeidx ON model_results_new USING btree (predictionStartTime);'
+    ,'CREATE INDEX mrpredictiontimeidx ON model_results_new USING btree (predictionTime);'
+    ,'CREATE INDEX mrpercentileidx ON model_results_new USING btree (percentile);'
+    ,'CREATE INDEX mrpairididx ON model_results_new USING btree (pairId);'
+    ,'ALTER TABLE model_results_new RENAME TO model_results;'
+  ]
+  async.eachSeries postInsertQueries, issueQuery, (err) ->
+    callback null, client
+
 importStream = (client, callback) ->
   predictionsRaw = ''
   process.stdin.setEncoding 'utf8'
-  process.stdin.on('readable', () ->
+  process.stdin.on 'readable', () ->
     chunk = process.stdin.read()
     if chunk isnt null
       predictionsRaw += chunk
 
-  process.stdin.on 'end', () ->
-    #predictions = JSON.parse predictionsRaw
-    #processPredictionData predictions, client, callback
+  #process.stdin.on 'end', () ->
+  #  predictions = JSON.parse predictionsRaw
+  #  processPredictionData predictions, client, callback
 
 main = () ->
-  onDisk = process.argv[2]
-  if onDisk
+  if 'onDisk' is process.argv[2]
     waterfallFunctions = [
       utils.initializeConnection,
       prepareTables,
       getFiles,
+      finalizeTables
       utils.terminateConnection
     ]
   else
@@ -96,4 +117,4 @@ main = () ->
     ]
   async.waterfall waterfallFunctions
 
-#main()
+main()
