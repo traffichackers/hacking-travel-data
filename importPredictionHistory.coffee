@@ -75,16 +75,14 @@ finalizeTables = (client, callback) ->
     client.query query, (err, result) ->
       if err
         console.log err
-      else
-        console.log file + " processed"
       internalCallback()
 
   postInsertQueries = [
-    'CREATE INDEX predictionstarttimeidx ON model_results_new USING btree (predictionStartTime);'
-    ,'CREATE INDEX predictiontimeidx ON model_results_new USING btree (predictionTime);'
-    ,'CREATE INDEX percentileidx ON model_results_new USING btree (percentile);'
-    ,'CREATE INDEX pairididx ON model_results_new USING btree (pairId);'
-    ,'ALTER TABLE model_results RENAME TO model_results_old;'
+    'drop table if exists model_results;'
+    ,'CREATE INDEX mrpredictionstarttimeidx ON model_results_new USING btree (predictionStartTime);'
+    ,'CREATE INDEX mrpredictiontimeidx ON model_results_new USING btree (predictionTime);'
+    ,'CREATE INDEX mrpercentileidx ON model_results_new USING btree (percentile);'
+    ,'CREATE INDEX mrpairididx ON model_results_new USING btree (pairId);'
     ,'ALTER TABLE model_results_new RENAME TO model_results;'
   ]
   async.eachSeries postInsertQueries, issueQuery, (err) ->
