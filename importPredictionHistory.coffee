@@ -6,7 +6,7 @@ utils = require './utils'
 dotenv = require 'dotenv'
 dotenv.load()
 
-modelResultsTable = process.argv[2]
+modelResultsTable = process.argv[3]
 
 # Data Functions
 prepareTables = (client, callback) ->
@@ -54,20 +54,21 @@ processPredictionData = (file, data, client, callback) ->
   percentiles = ['min', '10', '25', '50', '75', '90', 'max']
 
   # Process Each PairID in the File
-  for pairId of data
+  for pairId, pairData of data
     if pairId isnt 'Start'
       predictionTime = predictionStartTime
       predictions = data[pairId]
       predictionsLength = pairData.length
       if predictionsLength isnt 0 or predictions[0] isnt null
+        i = 0
         while i < predictionsLength
-
+           
           # Coalesce Prediction Times
           predictionString = ""
-          for percentile in percentiles {
+          for percentile in percentiles
             prediction = predictions[percentile][i]
             predictionString += prediction + ", "
-
+          
           # Insert Data
           modelResultsQuery += "insert into "+modelResultsTable+"_new (predictionStartTime,
             predictionTime, pairId, min, 10, 25, 50, 75, 90, max) values
@@ -75,7 +76,7 @@ processPredictionData = (file, data, client, callback) ->
             "+pairId+", "+ predictionString +");\n"
           predictionTime = new Date(predictionTime.getTime() + 300000)
           i++
-
+  
   # Insert the File Data
   client.query modelResultsQuery, (err, result) ->
     if err
